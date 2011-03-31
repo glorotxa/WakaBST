@@ -186,7 +186,7 @@ class Embedd(object):
         if Einit == None:
             wbound = numpy.sqrt(6)
             W_values = numpy.asarray( rng.uniform( low = -wbound, high = wbound, \
-                                    size = (N, D)), dtype = theano.config.floatX)
+                                    size = (D, N)), dtype = theano.config.floatX)
             self.E = theano.shared(value = W_values, name = 'E')
     
     def normalize(self):
@@ -223,16 +223,6 @@ def SimilarityFunctionleft(embeddings,leftop,rightop):
     simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxright,idxrel],[simi])
 
-#def SimilarityFunction(embeddings,leftop,rightop):
-#    idxrel = T.ivector('idxrel')
-#    idxright = T.ivector('idxright')
-#    idxleft = T.ivector('idxleft')
-#    lhs = (embeddings.E[idxleft]).reshape((10,embeddings.D))
-#    rhs = (embeddings.E[idxright]).reshape((10,embeddings.D))
-#    rel = (embeddings.E[idxrel]).reshape((10,embeddings.D))
-#    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
-#    return theano.function([idxleft,idxright,idxrel],[simi])
-
 def SimilarityFunctionrel(embeddings,leftop,rightop):
     idxright = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
@@ -242,61 +232,24 @@ def SimilarityFunctionrel(embeddings,leftop,rightop):
     simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright],[simi])
 
-def TrainFunctionright(embeddings,leftop,rightop):
-    idxrel = T.iscalar('idxrel')
-    idxright = T.iscalar('idxright')
-    idxleft = T.iscalar('idxleft')
-    idxrightn = T.iscalar('idxrightn')
-    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
-    rhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
-    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
-    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
-    rhsn = (embeddings.E[idxrightn]).reshape((1,embeddings.D))
-    simin = L1sim(leftop(lhs,rel),rightop(rhsn,rel))
-    cost = margincost(simi,simin)
-    gradientsparams = T.grad(cost, leftop.params + rightop.params)
-    gradientembd = T.grad(cost, [lhs,rhs,rel])
-    updates = dict((i,i-j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
-    #updates.update(dict((i,i-j) for i,j in zip([embeddings.E[idxleftn],embeddings.E[idxrightn],embeddings.E[idxreln]], gradientembd)))
-    return theano.function([idxleft,idxright,idxrel,idxrightn],[cost]+gradientembd,updates = updates)
+import theano.sparse
+import scipy.sparse
 
-def TrainFunctionleft(embeddings,leftop,rightop):
-    idxrel = T.iscalar('idxrel')
-    idxright = T.iscalar('idxright')
-    idxleft = T.iscalar('idxleft')
-    idxrightn = T.iscalar('idxrightn')
-    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
-    rhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
-    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
-    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
-    rhsn = (embeddings.E[idxrightn]).reshape((1,embeddings.D))
-    simin = L1sim(leftop(lhs,rel),rightop(rhsn,rel))
-    cost = margincost(simi,simin)
-    gradientsparams = T.grad(cost, leftop.params + rightop.params)
-    gradientembd = T.grad(cost, [lhs,rhs,rel])
-    updates = dict((i,i-j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
-    #updates.update(dict((i,i-j) for i,j in zip([embeddings.E[idxleftn],embeddings.E[idxrightn],embeddings.E[idxreln]], gradientembd)))
-    return theano.function([idxleft,idxright,idxrel,idxleftn],[cost]+gradientembd,updates = updates)
-
-
-def TrainFunction(nbbatchpos, embeddings, leftop, rightop):
-    posr = T.ivector('posr')
-    posl = T.ivector('posl')
-    poso = T.ivector('poso')
-    posln = T.ivector('posln')
-    lhs = T.concatenate([embeddings.E[posl[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
-    rhs = T.concatenate([embeddings.E[posr[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
-    rel = T.concatenate([embeddings.E[poso[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
-    lhsn = T.concatenate([embeddings.E[posln[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
-    print lhs,lhs.ndim
-    print leftop(lhs,rel).ndim
+def TrainFunction(embeddings, leftop, rightop):
+    inpposr = theano.sparse.csr_matrix()
+    inpposl = theano.sparse.csr_matrix()
+    inpposo = theano.sparse.csr_matrix()
+    inpposln = theano.sparse.csr_matrix()
+    lhs = theano.sparse.dot(embeddings.E,inpposl).T
+    rhs = theano.sparse.dot(embeddings.E,inpposr).T
+    rel = theano.sparse.dot(embeddings.E,inpposo).T
+    lhsn = theano.sparse.dot(embeddings.E,inpposln).T
     simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
     simin = L1sim(leftop(lhsn,rel),rightop(rhs,rel))
     cost = margincost(simi,simin)
-    gradientsparams = T.grad(cost, leftop.params + rightop.params)
-    gradientembd = T.grad(cost, [lhs,rhs,rel])
-    updates = dict((i,i-0.01*j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
-    return theano.function([posr, posl, poso, posln], [cost]+gradientembd,updates = updates)
+    gradientsparams = T.grad(cost, leftop.params + rightop.params + [embeddings.E])
+    updates = dict((i,i-0.01*j) for i,j in zip(leftop.params + rightop.params + [embeddings.E], gradientsparams))
+    return theano.function([inpposr, inpposl, inpposo, inpposln], [cost,simi,simin] + gradientsparams, updates = updates)
 
 
 embeddings = Embedd(numpy.random,90000,50)
@@ -314,13 +267,30 @@ import time
 
 #print (time.time() - tt)
 
-f = TrainFunction(1000,embeddings,leftop,rightop)
+f = TrainFunction(embeddings,leftop,rightop)
 
-c = [numpy.random.randint(90000,size=(1000)) for i in range(4)]
-tt = time.time()
-f(*c)
-print (time.time() - tt)
-
+print 'finished to compile'
+while 1:
+    c = [numpy.asarray(numpy.random.randint(90000,size=(100000)),dtype='int32') for i in range(4)]
+    posr = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
+    for idx,i in enumerate(c[0]):
+        posr[i,idx] = 1
+    posr = posr.tocsr()
+    posl = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
+    for idx,i in enumerate(c[1]):
+        posl[i,idx] = 1
+    posl = posl.tocsr()
+    poso = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
+    for idx,i in enumerate(c[2]):
+        poso[i,idx] = 1
+    poso = poso.tocsr()
+    posln = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
+    for idx,i in enumerate(c[3]):
+        posln[i,idx] = 1
+    posln = posln.tocsr()
+    tt = time.time()
+    print f(posr,posl,poso,posln)
+    print (time.time() - tt)
 
 
 #tt = time.time()
