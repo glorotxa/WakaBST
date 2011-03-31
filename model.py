@@ -5,18 +5,16 @@ import cPickle
 
 # Similarity functions ----------------------------
 def L1sim(left,right):
-    return -T.mean(T.sum(T.abs_(left-right),axis=1),axis=0)
-
-def L1sim1(left,right):
     return -T.sum(T.abs_(left-right),axis=1)
 
 def dotsim(left,right):
-    return T.mean(T.sum(left*right,axis=1),axis=0)
+    return T.sum(left*right,axis=1)
 # -------------------------------------------------
 
 # Costs -------------------------------------------
 def margincost(pos,neg):
-    return T.mean(neg - pos + 1.0)
+    out = neg - pos + 1.0
+    return T.mean(out * (out>0))
 # -------------------------------------------------
 
 # Activation functions ----------------------------
@@ -213,28 +211,124 @@ def SimilarityFunctionright(embeddings,leftop,rightop):
     lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
     rhs = embeddings.E
     rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
-    simi = L1sim1(leftop(lhs,rel),rightop(rhs,rel))
+    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxrel],[simi])
+
+def SimilarityFunctionleft(embeddings,leftop,rightop):
+    idxrel = T.iscalar('idxrel')
+    idxright = T.iscalar('idxleft')
+    rhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
+    lhs = embeddings.E
+    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
+    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    return theano.function([idxright,idxrel],[simi])
+
+#def SimilarityFunction(embeddings,leftop,rightop):
+#    idxrel = T.ivector('idxrel')
+#    idxright = T.ivector('idxright')
+#    idxleft = T.ivector('idxleft')
+#    lhs = (embeddings.E[idxleft]).reshape((10,embeddings.D))
+#    rhs = (embeddings.E[idxright]).reshape((10,embeddings.D))
+#    rel = (embeddings.E[idxrel]).reshape((10,embeddings.D))
+#    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+#    return theano.function([idxleft,idxright,idxrel],[simi])
+
+def SimilarityFunctionrel(embeddings,leftop,rightop):
+    idxright = T.iscalar('idxrel')
+    idxleft = T.iscalar('idxleft')
+    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
+    rel = embeddings.E
+    lhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
+    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    return theano.function([idxleft,idxright],[simi])
+
+def TrainFunctionright(embeddings,leftop,rightop):
+    idxrel = T.iscalar('idxrel')
+    idxright = T.iscalar('idxright')
+    idxleft = T.iscalar('idxleft')
+    idxrightn = T.iscalar('idxrightn')
+    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
+    rhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
+    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
+    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    rhsn = (embeddings.E[idxrightn]).reshape((1,embeddings.D))
+    simin = L1sim(leftop(lhs,rel),rightop(rhsn,rel))
+    cost = margincost(simi,simin)
+    gradientsparams = T.grad(cost, leftop.params + rightop.params)
+    gradientembd = T.grad(cost, [lhs,rhs,rel])
+    updates = dict((i,i-j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
+    #updates.update(dict((i,i-j) for i,j in zip([embeddings.E[idxleftn],embeddings.E[idxrightn],embeddings.E[idxreln]], gradientembd)))
+    return theano.function([idxleft,idxright,idxrel,idxrightn],[cost]+gradientembd,updates = updates)
+
+def TrainFunctionleft(embeddings,leftop,rightop):
+    idxrel = T.iscalar('idxrel')
+    idxright = T.iscalar('idxright')
+    idxleft = T.iscalar('idxleft')
+    idxrightn = T.iscalar('idxrightn')
+    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
+    rhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
+    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
+    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    rhsn = (embeddings.E[idxrightn]).reshape((1,embeddings.D))
+    simin = L1sim(leftop(lhs,rel),rightop(rhsn,rel))
+    cost = margincost(simi,simin)
+    gradientsparams = T.grad(cost, leftop.params + rightop.params)
+    gradientembd = T.grad(cost, [lhs,rhs,rel])
+    updates = dict((i,i-j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
+    #updates.update(dict((i,i-j) for i,j in zip([embeddings.E[idxleftn],embeddings.E[idxrightn],embeddings.E[idxreln]], gradientembd)))
+    return theano.function([idxleft,idxright,idxrel,idxleftn],[cost]+gradientembd,updates = updates)
+
+
+def TrainFunction(nbbatchpos, embeddings, leftop, rightop):
+    posr = T.ivector('posr')
+    posl = T.ivector('posl')
+    poso = T.ivector('poso')
+    posln = T.ivector('posln')
+    lhs = T.concatenate([embeddings.E[posl[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
+    rhs = T.concatenate([embeddings.E[posr[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
+    rel = T.concatenate([embeddings.E[poso[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
+    lhsn = T.concatenate([embeddings.E[posln[i]].reshape((1,embeddings.D)) for i in range(nbbatchpos)],axis=0)
+    print lhs,lhs.ndim
+    print leftop(lhs,rel).ndim
+    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    simin = L1sim(leftop(lhsn,rel),rightop(rhs,rel))
+    cost = margincost(simi,simin)
+    gradientsparams = T.grad(cost, leftop.params + rightop.params)
+    gradientembd = T.grad(cost, [lhs,rhs,rel])
+    updates = dict((i,i-0.01*j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
+    return theano.function([posr, posl, poso, posln], [cost]+gradientembd,updates = updates)
+
 
 embeddings = Embedd(numpy.random,90000,50)
 #leftop = MLP(numpy.random, 'rect', 50, 50, 75, 50)   
 #rightop = MLP(numpy.random, 'rect', 50, 50, 75, 50)
 leftop = Quadlayer(numpy.random, 50, 50, 75, 50)   
 rightop = Quadlayer(numpy.random, 50, 50, 75, 50)
-f = SimilarityFunctionright(embeddings,leftop,rightop)
+f = SimilarityFunction(embeddings,leftop,rightop)
 
 print 'coucou'
 import time
+
+#for i in range(1):
+#    print f(numpy.random.randint(90000,size=(10,)),numpy.random.randint(90000,size=(10,)),numpy.random.randint(90000),size=(10,))[0].shape
+
+#print (time.time() - tt)
+
+f = TrainFunction(1000,embeddings,leftop,rightop)
+
+c = [numpy.random.randint(90000,size=(1000)) for i in range(4)]
 tt = time.time()
-
-for i in range(1):
-    print f(numpy.random.randint(90000),numpy.random.randint(90000))[0].shape
-
+f(*c)
 print (time.time() - tt)
 
 
 
+#tt = time.time()
+#for i in range(1000):
+#    print f(numpy.random.randint(90000),numpy.random.randint(90000),numpy.random.randint(90000),numpy.random.randint(90000))
+
+
+
+
 # create function that associate embedig + left + right operator + cost to give similarity and train system
-
-
 
