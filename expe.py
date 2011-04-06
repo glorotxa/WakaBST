@@ -1,5 +1,7 @@
 import scipy.sparse
 import cPickle
+import os
+import sys
 from model import *
 
 train = 'train'
@@ -10,7 +12,27 @@ lrparam = 1
 lremb = 0.01
 nbtest = 50 
 testall = 5
+savepath = 'expequad1'
+simfnstr = 'dot'
+listconcept = ['__brain_NN_1', '__eat_VB_1', '__france_NN_1', '__auto_NN_1']
+listrel = ['_has_part']
 
+print >> sys.stderr, 'train set : ', train
+print >> sys.stderr, 'operator : ', operator
+print >> sys.stderr, 'ndim : ',  ndim
+print >> sys.stderr, 'nbbatches : ', nbatches
+print >> sys.stderr, 'lrparam : ', lrparam
+print >> sys.stderr, 'lremb : ', lremb
+print >> sys.stderr, 'nbtest : ', nbtest
+print >> sys.stderr, 'testall : ', testall
+print >> sys.stderr, 'savepath : ', savepath
+print >> sys.stderr, 'simfnstr : ', simfnstr
+print >> sys.stderr, 'listconcept : ', listconcept
+print >> sys.stderr, 'listrel : ', listrel
+
+
+if savepath not in os.listdir('.'):
+    os.mkdir(savepath)
 
 idx2concept = cPickle.load(open('idx2concept.pkl','r'))
 concept2idx = cPickle.load(open('concept2idx.pkl','r'))
@@ -56,15 +78,20 @@ elif operator == 'quad':
     leftop = Quadlayer(numpy.random, ndim, ndim, (3*ndim)/2, ndim)
     rightop = Quadlayer(numpy.random, ndim, ndim, (3*ndim)/2, ndim)
 
+simfn = eval(simfnstr+'sim')
+
 # embeddings
 embeddings = Embedd(numpy.random,len(idx2concept.keys()),ndim)
 
 # train function
-ft = TrainFunction(embeddings,leftop,rightop)
+ft = TrainFunction(simfn,embeddings,leftop,rightop)
 
 # simi function
-sl = SimilarityFunctionleft(embeddings,leftop,rightop)
-sr = SimilarityFunctionright(embeddings,leftop,rightop)
+sl = SimilarityFunctionleft(simfn,embeddings,leftop,rightop)
+sr = SimilarityFunctionright(simfn,embeddings,leftop,rightop)
+leftopid = Id()
+rightopid = Id()
+Esim = SimilarityFunctionright(L2sim,embeddings,leftopid,rightopid)
 
 ct = 0
 M = posl.shape[1]/nbatches
@@ -78,7 +105,17 @@ while 1:
     random = random[:,numpy.random.permutation(random.shape[1])]
     ct = ct + 1
     if ct/float(testall) == ct / testall:
-        print '------ Epoch ', ct
+        print >> sys.stderr, '------ Epoch ', ct
         result = calctestval(sl,sr,idxtl[:nbtest],idxtr[:nbtest],idxto[:nbtest])
+        for cc in listconcept:
+            print >> sys.stderr, getnclosest(10, idx2concept, concept2def, Esim, concept2idx[cc], 0, lhs = True, emb = True)
+            for rr in listrel:
+                print >> sys.stderr, getnclosest(10, idx2concept, concept2def, sl, concept2idx[cc], concept2idx[rr], lhs = True, emb = False)
+                print >> sys.stderr, getnclosest(10, idx2concept, concept2def, sr, concept2idx[cc], concept2idx[rr], lhs = False, emb = False)
+        f = open(savepath+'/model.pkl','w')
+        cPickle.dump(embeddings,f,-1)
+        cPickle.dump(leftop,f,-1)
+        cPickle.dump(rightop,f,-1)
+        f.close()
         print result
 

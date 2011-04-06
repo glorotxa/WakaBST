@@ -8,7 +8,7 @@ def L1sim(left,right):
     return -T.sum(T.sqrt(T.sqr(left-right)),axis=1)
 
 def L2sim(left,right):
-    return -T.sqrt(T.sum(T.sqr(left-right)),axis=1)
+    return -T.sqrt(T.sum(T.sqr(left-right),axis=1))
 
 def dotsim(left,right):
     return T.sum(left*right,axis=1)
@@ -188,49 +188,63 @@ class Embedd(object):
 
 # ---------------------------------------
 
-def SimilarityFunction(embeddings,leftop,rightop):
+def SimilarityFunction(fnsim,embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxright')
     idxleft = T.iscalar('idxleft')
     lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
     rhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
     rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
-    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright,idxrel],[simi])
 
-def SimilarityFunctionright(embeddings,leftop,rightop):
+def SimilarityFunctionright(fnsim,embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
     lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
     rhs = embeddings.E.T
     rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
-    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxrel],[simi])
 
-def SimilarityFunctionleft(embeddings,leftop,rightop):
+def SimilarityFunctionleft(fnsim,embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxleft')
     rhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
     lhs = embeddings.E.T
     rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
-    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxright,idxrel],[simi])
 
-def SimilarityFunctionrel(embeddings,leftop,rightop):
+def SimilarityFunctionrel(fnsim,embeddings,leftop,rightop):
     idxright = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
     lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
     rel = embeddings.E.T
     lhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
-    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright],[simi])
 
-#def getnclosest(simf,idx1,dix2
+def getnclosest(N, idx2concept, concept2def, simfn, idx1, idx2, lhs = True, emb = False):
+    ll = simfn(idx1,idx2)[0]
+    llo = numpy.argsort(ll)[::-1]
+    llt = ll[llo]
+    tt = ''
+    if emb:
+        tt += 'Similar to: %s : %s\n'%(idx2concept[idx1], concept2def[idx2concept[idx1]])
+    else:
+        if lhs:
+            tt += '%s %s ???? : %s\n'%(idx2concept[idx1], idx2concept[idx2], concept2def[idx2concept[idx1]])
+        else:
+            tt += '???? %s %s : %s\n'%(idx2concept[idx2], idx2concept[idx1], concept2def[idx2concept[idx1]])
+    for i in range(N):
+        tt += 'Rank %s %s %s : %s\n'%(i+1,llt[i],idx2concept[llo[i]], concept2def[idx2concept[llo[i]]])
+    return tt
 
 import theano.sparse
 import scipy.sparse
 
-def TrainFunction(embeddings, leftop, rightop):
+def TrainFunction(fnsim,embeddings, leftop, rightop):
     # inputs 
     inpposr = theano.sparse.csr_matrix()
     inpposl = theano.sparse.csr_matrix()
@@ -246,8 +260,8 @@ def TrainFunction(embeddings, leftop, rightop):
     lhsn = theano.sparse.dot(embeddings.E,inpposln).T
     rhsn = theano.sparse.dot(embeddings.E,inpposrn).T
     simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
-    siminl = dotsim(leftop(lhsn,rel),rightop(rhs,rel))
-    siminr = dotsim(leftop(lhs,rel),rightop(rhsn,rel))
+    siminl = fnsim(leftop(lhsn,rel),rightop(rhs,rel))
+    siminr = fnsim(leftop(lhs,rel),rightop(rhsn,rel))
     costl,outl = margincost(simi,siminl)
     costr,outr = margincost(simi,siminr)
     cost = costl + costr
@@ -270,6 +284,6 @@ def calctestval(sl,sr,idxtl,idxtr,idxto):
     errl = []
     errr = []
     for l,o,r in zip(idxtl,idxto,idxtr):
-        errl += [numpy.argsort(numpy.argsort(sl(r,o))[:,::-1]).flatten()[l]]
-        errr += [numpy.argsort(numpy.argsort(sr(l,o))[:,::-1]).flatten()[r]]
+        errl += [numpy.argsort(numpy.argsort(sl(r,o)[0])[::-1]).flatten()[l]]
+        errr += [numpy.argsort(numpy.argsort(sr(l,o)[0])[::-1]).flatten()[r]]
     return numpy.mean(errl+errr),numpy.std(errl+errr),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr)
