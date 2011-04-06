@@ -209,7 +209,7 @@ def SimilarityFunctionright(fnsim,embeddings,leftop,rightop):
 
 def SimilarityFunctionleft(fnsim,embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
-    idxright = T.iscalar('idxleft')
+    idxright = T.iscalar('idxright')
     rhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
     lhs = embeddings.E.T
     rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
@@ -234,9 +234,9 @@ def getnclosest(N, idx2concept, concept2def, simfn, idx1, idx2, lhs = True, emb 
         tt += 'Similar to: %s : %s\n'%(idx2concept[idx1], concept2def[idx2concept[idx1]])
     else:
         if lhs:
-            tt += '%s %s ???? : %s\n'%(idx2concept[idx1], idx2concept[idx2], concept2def[idx2concept[idx1]])
+            tt += '???? %s %s : %s\n'%( idx2concept[idx2],idx2concept[idx1], concept2def[idx2concept[idx1]])
         else:
-            tt += '???? %s %s : %s\n'%(idx2concept[idx2], idx2concept[idx1], concept2def[idx2concept[idx1]])
+            tt += '%s %s ????: %s\n'%( idx2concept[idx1],idx2concept[idx2], concept2def[idx2concept[idx1]])
     for i in range(N):
         tt += 'Rank %s %s %s : %s\n'%(i+1,llt[i],idx2concept[llo[i]], concept2def[idx2concept[llo[i]]])
     return tt
