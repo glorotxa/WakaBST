@@ -5,16 +5,21 @@ import cPickle
 
 # Similarity functions ----------------------------
 def L1sim(left,right):
-    return -T.sum(T.abs_(left-right),axis=1)
+    return -T.sum(T.sqrt(T.sqr(left-right)),axis=1)
+
+def L2sim(left,right):
+    return -T.sqrt(T.sum(T.sqr(left-right)),axis=1)
 
 def dotsim(left,right):
     return T.sum(left*right,axis=1)
+
 # -------------------------------------------------
 
 # Costs -------------------------------------------
 def margincost(pos,neg):
-    out = neg - pos + 1.0
-    return T.mean(out * (out>0))
+    out = neg - pos + 1.
+    return T.sum(out * (out>0)),out>0
+
 # -------------------------------------------------
 
 # Activation functions ----------------------------
@@ -35,6 +40,7 @@ def tanh(x):
 
 def lin(x):
     return x
+
 # -------------------------------------------------
 
 
@@ -54,10 +60,8 @@ class Layer(object):
         else:
             self.W = theano.shared(value = Winit, name = 'W'+tag)
         self.params = [self.W]
-        
     def __call__(self,x):
         return self.act(T.dot(x, self.W))
-    
     def save(self,path):
         f = open(path,'w')
         cPickle.dump(self,f,-1)
@@ -78,10 +82,8 @@ class Layercomb(object):
         else:
             self.b = theano.shared(value = binit, name = 'b')
         self.params = self.layer1.params + self.layer2.params + [self.b]
-
     def __call__(self,x,y):
         return self.act(T.dot(x, self.layer1.W) + T.dot(y, self.layer2.W) + self.b)
-
     def save(self,path):
         f = open(path,'w')
         cPickle.dump(self,f,-1)
@@ -104,10 +106,8 @@ class MLP(object):
         else:
             self.b = theano.shared(value = b3init, name = 'b')
         self.params = self.layer12.params + self.layer3.params + [self.b]
-
     def __call__(self,x,y):
         return self.layer3(self.layer12(x,y))
-
     def save(self,path):
         f = open(path,'w')
         cPickle.dump(self,f,-1)
@@ -131,7 +131,6 @@ class Quadlayer(object):
             self.b1 = theano.shared(value= b_values, name = 'b1')
         else:
             self.b1 = theano.shared(value = b1init, name = 'b1')
-        
         if W2init == None:
             wbound = numpy.sqrt(6./(n_inp2+n_hid))
             W_values = numpy.asarray( rng.uniform( low = -wbound, high = wbound, \
@@ -144,7 +143,6 @@ class Quadlayer(object):
             self.b2 = theano.shared(value= b_values, name = 'b2')
         else:
             self.b2 = theano.shared(value = b2init, name = 'b2')
-        
         if W3init == None:
             wbound = numpy.sqrt(6./(n_hid+n_out))
             W_values = numpy.asarray( rng.uniform( low = -wbound, high = wbound, \
@@ -158,26 +156,20 @@ class Quadlayer(object):
         else:
             self.b3 = theano.shared(value = b3init, name = 'b3')
         self.params = [self.W1,self.b1,self.W2,self.b2,self.W3,self.b3]
-
     def __call__(self,x,y):
         return T.dot((T.dot(x,self.W1) + self.b1) * (T.dot(y,self.W2) + self.b2), self.W3 ) + self.b3
-
     def save(self,path):
         f = open(path,'w')
         cPickle.dump(self,f,-1)
         f.close()
 
 class Id(object):
-    def __init__(self,N):
-        self.N=N
-
-    def __call__(self,x):
-        return x[:,:self.N]
-
+    def __init__(self):
+        self.params = []
+    def __call__(self,x,y):
+        return x
     def save(self,path):
-        f = open(path,'w')
-        cPickle.dump(self,f,-1)
-        f.close()
+        pass
 
 class Embedd(object):
     def __init__(self,rng,N,D,Einit = None):
@@ -187,10 +179,11 @@ class Embedd(object):
             wbound = numpy.sqrt(6)
             W_values = numpy.asarray( rng.uniform( low = -wbound, high = wbound, \
                                     size = (D, N)), dtype = theano.config.floatX)
-            self.E = theano.shared(value = W_values, name = 'E')
-    
+            self.E = theano.shared(value = W_values/numpy.sqrt(numpy.sum(W_values * W_values,axis=0)), name = 'E')
+        self.updates = {self.E:self.E/T.sqrt(T.sum(self.E * self.E,axis=0))}
+        self.norma = theano.function([],[],updates = self.updates)
     def normalize(self):
-        self.E.value /= numpy.sum(self.E.value * self.E.value,axis=1)
+        self.norma()
 
 
 # ---------------------------------------
@@ -199,106 +192,84 @@ def SimilarityFunction(embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxright')
     idxleft = T.iscalar('idxleft')
-    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
-    rhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
-    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
-    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
+    rhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
+    rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
+    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright,idxrel],[simi])
 
 def SimilarityFunctionright(embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
-    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
-    rhs = embeddings.E
-    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
-    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
+    rhs = embeddings.E.T
+    rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
+    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxrel],[simi])
 
 def SimilarityFunctionleft(embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxleft')
-    rhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
-    lhs = embeddings.E
-    rel = (embeddings.E[idxrel]).reshape((1,embeddings.D))
-    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    rhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
+    lhs = embeddings.E.T
+    rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
+    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxright,idxrel],[simi])
 
 def SimilarityFunctionrel(embeddings,leftop,rightop):
     idxright = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
-    lhs = (embeddings.E[idxleft]).reshape((1,embeddings.D))
-    rel = embeddings.E
-    lhs = (embeddings.E[idxright]).reshape((1,embeddings.D))
-    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
+    lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
+    rel = embeddings.E.T
+    lhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
+    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright],[simi])
+
+#def getnclosest(simf,idx1,dix2
 
 import theano.sparse
 import scipy.sparse
 
 def TrainFunction(embeddings, leftop, rightop):
+    # inputs 
     inpposr = theano.sparse.csr_matrix()
     inpposl = theano.sparse.csr_matrix()
     inpposo = theano.sparse.csr_matrix()
     inpposln = theano.sparse.csr_matrix()
+    inpposrn = theano.sparse.csr_matrix()
+    lrparams = T.scalar('lrparams')
+    lrembeddings = T.scalar('lrembeddings')
+    # graph
     lhs = theano.sparse.dot(embeddings.E,inpposl).T
     rhs = theano.sparse.dot(embeddings.E,inpposr).T
     rel = theano.sparse.dot(embeddings.E,inpposo).T
     lhsn = theano.sparse.dot(embeddings.E,inpposln).T
-    simi = L1sim(leftop(lhs,rel),rightop(rhs,rel))
-    simin = L1sim(leftop(lhsn,rel),rightop(rhs,rel))
-    cost = margincost(simi,simin)
-    gradientsparams = T.grad(cost, leftop.params + rightop.params + [embeddings.E])
-    updates = dict((i,i-0.01*j) for i,j in zip(leftop.params + rightop.params + [embeddings.E], gradientsparams))
-    return theano.function([inpposr, inpposl, inpposo, inpposln], [cost,simi,simin] + gradientsparams, updates = updates)
+    rhsn = theano.sparse.dot(embeddings.E,inpposrn).T
+    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
+    siminl = dotsim(leftop(lhsn,rel),rightop(rhs,rel))
+    siminr = dotsim(leftop(lhs,rel),rightop(rhsn,rel))
+    costl,outl = margincost(simi,siminl)
+    costr,outr = margincost(simi,siminr)
+    cost = costl + costr
+    out = T.concatenate([outl,outr])
+    gradientsparams = T.grad(cost, leftop.params + rightop.params)
+    gradientsembeddings = T.grad(cost, embeddings.E)
+    ############### scaling variants
+    #updates = dict((i,i-lrparams/(1+T.cast(T.sum(out),dtype=theano.config.floatX))*j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
+    #maskE = T.vector('maskE')
+    #newE = (embeddings.E - lrembeddings/(1+maskE*T.cast(T.sum(out),dtype=theano.config.floatX)) * gradientsembeddings)
+    ###############
+    updates = dict((i,i-lrparams*j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
+    newE = embeddings.E - lrembeddings * gradientsembeddings
+    #newEnorm = newE / T.sqrt(T.sum(newE*newE,axis=0))
+    updates.update({embeddings.E:newE})
+    return theano.function([lrparams,lrembeddings,inpposl, inpposr, inpposo, inpposln, inpposrn], [cost,costl,costr,T.sum(out),T.sum(outl),T.sum(outr),lhs,rhs,rel,simi,siminl,siminr],updates=updates)
 
 
-embeddings = Embedd(numpy.random,90000,50)
-#leftop = MLP(numpy.random, 'rect', 50, 50, 75, 50)   
-#rightop = MLP(numpy.random, 'rect', 50, 50, 75, 50)
-leftop = Quadlayer(numpy.random, 50, 50, 75, 50)   
-rightop = Quadlayer(numpy.random, 50, 50, 75, 50)
-f = SimilarityFunction(embeddings,leftop,rightop)
-
-print 'coucou'
-import time
-
-#for i in range(1):
-#    print f(numpy.random.randint(90000,size=(10,)),numpy.random.randint(90000,size=(10,)),numpy.random.randint(90000),size=(10,))[0].shape
-
-#print (time.time() - tt)
-
-f = TrainFunction(embeddings,leftop,rightop)
-
-print 'finished to compile'
-while 1:
-    c = [numpy.asarray(numpy.random.randint(90000,size=(100000)),dtype='int32') for i in range(4)]
-    posr = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
-    for idx,i in enumerate(c[0]):
-        posr[i,idx] = 1
-    posr = posr.tocsr()
-    posl = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
-    for idx,i in enumerate(c[1]):
-        posl[i,idx] = 1
-    posl = posl.tocsr()
-    poso = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
-    for idx,i in enumerate(c[2]):
-        poso[i,idx] = 1
-    poso = poso.tocsr()
-    posln = scipy.sparse.lil_matrix((90000,100000),dtype=theano.config.floatX)
-    for idx,i in enumerate(c[3]):
-        posln[i,idx] = 1
-    posln = posln.tocsr()
-    tt = time.time()
-    print f(posr,posl,poso,posln)
-    print (time.time() - tt)
-
-
-#tt = time.time()
-#for i in range(1000):
-#    print f(numpy.random.randint(90000),numpy.random.randint(90000),numpy.random.randint(90000),numpy.random.randint(90000))
-
-
-
-
-# create function that associate embedig + left + right operator + cost to give similarity and train system
-
+def calctestval(sl,sr,idxtl,idxtr,idxto):
+    errl = []
+    errr = []
+    for l,o,r in zip(idxtl,idxto,idxtr):
+        errl += [numpy.argsort(numpy.argsort(sl(r,o))[:,::-1]).flatten()[l]]
+        errr += [numpy.argsort(numpy.argsort(sr(l,o))[:,::-1]).flatten()[r]]
+    return numpy.mean(errl+errr),numpy.std(errl+errr),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr)
