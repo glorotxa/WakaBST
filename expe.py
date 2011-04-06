@@ -10,12 +10,15 @@ ndim = 50
 nbatches = 10
 lrparam = 1
 lremb = 0.01
-nbtest = 50 
-testall = 5
+nbtest = 100 
+testall = 25
 savepath = 'expequad1'
 simfnstr = 'dot'
 listconcept = ['__brain_NN_1', '__eat_VB_1', '__france_NN_1', '__auto_NN_1']
-listrel = ['_has_part']
+listrel = ['_has_part','_similar_to','_member_of_domain_topic','_part_of','_verb_group','_derivationally_related_form']
+nbrank = 30
+loadmodel = 'expequad1/model.pkl'
+
 
 print >> sys.stderr, 'train set : ', train
 print >> sys.stderr, 'operator : ', operator
@@ -29,6 +32,8 @@ print >> sys.stderr, 'savepath : ', savepath
 print >> sys.stderr, 'simfnstr : ', simfnstr
 print >> sys.stderr, 'listconcept : ', listconcept
 print >> sys.stderr, 'listrel : ', listrel
+print >> sys.stderr, 'nbrank : ', nbrank
+print >> sys.stderr, 'loadmodel : ', loadmodel
 
 
 if savepath not in os.listdir('.'):
@@ -64,24 +69,31 @@ for idx,i in enumerate(idxr):
 
 random = random.tocsr()
 
-# operators
-if operator == 'Id':
-    leftop = Id()
-    rightop = Id()
-elif operator == 'linear':
-    leftop = Layercomb(numpy.random, 'lin', ndim, ndim, ndim)
-    rightop = Layercomb(numpy.random, 'lin', ndim, ndim, ndim)
-elif operator == 'mlp':
-    leftop = MLP(numpy.random, 'rect', ndim, ndim, (3*ndim)/2, ndim)
-    rightop = MLP(numpy.random, 'rect', ndim, ndim, (3*ndim)/2, ndim)
-elif operator == 'quad':
-    leftop = Quadlayer(numpy.random, ndim, ndim, (3*ndim)/2, ndim)
-    rightop = Quadlayer(numpy.random, ndim, ndim, (3*ndim)/2, ndim)
+
+if not loadmodel:
+    # operators
+    if operator == 'Id':
+        leftop = Id()
+        rightop = Id()
+    elif operator == 'linear':
+        leftop = Layercomb(numpy.random, 'lin', ndim, ndim, ndim)
+        rightop = Layercomb(numpy.random, 'lin', ndim, ndim, ndim)
+    elif operator == 'mlp':
+        leftop = MLP(numpy.random, 'rect', ndim, ndim, (3*ndim)/2, ndim)
+        rightop = MLP(numpy.random, 'rect', ndim, ndim, (3*ndim)/2, ndim)
+    elif operator == 'quad':
+        leftop = Quadlayer(numpy.random, ndim, ndim, (3*ndim)/2, ndim)
+        rightop = Quadlayer(numpy.random, ndim, ndim, (3*ndim)/2, ndim)
+    # embeddings
+    embeddings = Embedd(numpy.random,len(idx2concept.keys()),ndim)
+else:
+    f = open(loadmodel)
+    embeddings = cPickle.load(f)
+    leftop = cPickle.load(f)
+    rightop = cPickle.load(f)
 
 simfn = eval(simfnstr+'sim')
 
-# embeddings
-embeddings = Embedd(numpy.random,len(idx2concept.keys()),ndim)
 
 # train function
 ft = TrainFunction(simfn,embeddings,leftop,rightop)
@@ -95,10 +107,19 @@ Esim = SimilarityFunctionright(L2sim,embeddings,leftopid,rightopid)
 
 ct = 0
 M = posl.shape[1]/nbatches
+
+left = []
+right = []
+leftb = []
+rightb = []
+
 while 1:
     for i in range(nbatches):
         resl = ft(lrparam/float(M),lremb,posl[:,i*M:(i+1)*M],posr[:,i*M:(i+1)*M],poso[:,i*M:(i+1)*M],random[:,2*i*M:(2*i+1)*M],random[:,(2*i+1)*M:(2*i+2)*M])
-        print resl[0]/float(2*M),resl[1]/float(M),resl[2]/float(M),resl[3]/float(2*M),resl[4]/float(M),resl[5]/float(M)
+        left += [resl[1]/float(M)]
+        right += [resl[2]/float(M)] 
+        leftb += [resl[4]/float(M)]
+        rightb += [resl[5]/float(M)]
         embeddings.norma()
     order = numpy.random.permutation(posl.shape[1])
     posl,posr,poso = (posl[:,order],posr[:,order],poso[:,order])
@@ -106,16 +127,32 @@ while 1:
     ct = ct + 1
     if ct/float(testall) == ct / testall:
         print >> sys.stderr, '------ Epoch ', ct
+        print >> sys.stderr, numpy.mean(left+right), numpy.std(left+right),numpy.mean(left),numpy.std(left),numpy.mean(right), numpy.std(right)
+        print >> sys.stderr, numpy.mean(leftb+rightb), numpy.std(leftb+rightb),numpy.mean(leftb),numpy.std(leftb),numpy.mean(rightb), numpy.std(rightb)
+        txt = ''
+        txt += '%s %s %s %s %s %s\n'%(numpy.mean(left+right), numpy.std(left+right),numpy.mean(left),numpy.std(left),numpy.mean(right), numpy.std(right))
+        txt += '%s %s %s %s %s %s\n'%(numpy.mean(leftb+rightb), numpy.std(leftb+rightb),numpy.mean(leftb),numpy.std(leftb),numpy.mean(rightb), numpy.std(rightb))
+        left = []
+        right = []
+        leftb = []
+        rightb = []
         result = calctestval(sl,sr,idxtl[:nbtest],idxtr[:nbtest],idxto[:nbtest])
+        txt += str(result)+'\n'
         for cc in listconcept:
-            print >> sys.stderr, getnclosest(10, idx2concept, concept2def, Esim, concept2idx[cc], 0, lhs = True, emb = True)
+            txt+='\n'
+            txt += getnclosest(nbrank, idx2concept, concept2def, Esim, concept2idx[cc], 0, lhs = True, emb = True)
             for rr in listrel:
-                print >> sys.stderr, getnclosest(10, idx2concept, concept2def, sl, concept2idx[cc], concept2idx[rr], lhs = True, emb = False)
-                print >> sys.stderr, getnclosest(10, idx2concept, concept2def, sr, concept2idx[cc], concept2idx[rr], lhs = False, emb = False)
+                txt+='\n'
+                txt += getnclosest(nbrank, idx2concept, concept2def, sl, concept2idx[cc], concept2idx[rr], lhs = True, emb = False)
+                txt+='\n'
+                txt += getnclosest(nbrank, idx2concept, concept2def, sr, concept2idx[cc], concept2idx[rr], lhs = False, emb = False)
         f = open(savepath+'/model.pkl','w')
         cPickle.dump(embeddings,f,-1)
         cPickle.dump(leftop,f,-1)
         cPickle.dump(rightop,f,-1)
+        f.close()
+        f = open(savepath+'/currentrel.txt','w')
+        f.write(txt)
         f.close()
         print result
 
