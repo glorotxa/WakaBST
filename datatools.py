@@ -38,13 +38,41 @@ f = open('concept2def.pkl','w')
 cPickle.dump(concept2def,f,-1)
 f.close()
 
+def parseconcept(concept):
+    if concept[:2]=='__':
+        concept =  concept.split('_')
+        namecc = concept[2]
+        for tmp in concept[3:-1]:
+            namecc += '_'+tmp
+        return namecc, i[-1]
+    else:
+        return None
+
+ll = idx2concept.values()
+dictambiguous = {}
+dictconcept = {}
+
+for i in ll:
+    if i[:2]=='__':
+        namecc,nb = parseconcept(i)
+        if namecc not in dictconcept.keys():
+            dictconcept[namecc] = [nb]
+        else:
+            dictconcept[namecc] += [nb]
+            dictambiguous[namecc] = dictconcept[namecc] 
+
+f = open('dictconcept.pkl','w')
+cPickle.dump(dictconcept,f,-1)
+f.close()
+f = open('dictambiguous.pkl','w')
+cPickle.dump(dictambiguous,f,-1)
+f.close()
 
 def parseline(line):
     lhs,rel,rhs = line.split('\t')
     lhs = lhs.split(' ')
     rhs = rhs.split(' ')
     return lhs,rel,rhs
-
 
 f = open('/data/lisa/data/NLU/wordnet3.0/train-WordNet3.0-relations+syn-anto.txt','r')
 
@@ -105,4 +133,40 @@ cPickle.dump(poso,h,-1)
 f.close()
 g.close()
 h.close()
-    
+
+
+f = open('/data/lisa/data/NLU/semcor3.0/Brown-filtered-triplets-unambiguous.dat','r')
+
+dat = f.readlines()
+f.close()
+
+lldat = []
+
+for i in dat:
+    currenttuple = [()]
+    lhs,rel,rhs = parseline(i[:-1])
+    for j in lhs:
+        namecc,nb = parseconcept(j)
+        listconceptcurr = dictconcept[namecc]
+        currentlist = []
+        for k in currenttuple:
+            for l in listconceptcurr:
+                currentlist += [k+tuple(l)]
+        currenttuple = currentlist
+    j=rel
+    namecc,nb = parseconcept(j)
+    listconceptcurr = dictconcept[namecc]
+    currentlist = []
+    for k in currenttuple:
+        for l in listconceptcurr:
+            currentlist += [k+tuple(l)]
+        currenttuple = currentlist
+    for j in rhs:
+        namecc,nb = parseconcept(j)
+        listconceptcurr = dictconcept[namecc]
+        currentlist = []
+        for k in currenttuple:
+            for l in listconceptcurr:
+                currentlist += [k+tuple(l)]
+        currenttuple = currentlist
+    lldat += [currentDtuple]
