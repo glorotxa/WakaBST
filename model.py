@@ -16,9 +16,13 @@ def dotsim(left,right):
 # -------------------------------------------------
 
 # Costs -------------------------------------------
-def margincost(pos,neg):
-    out = neg - pos + 1.
+def margincost(pos,neg,marge=1.0):
+    out = neg - pos + marge
     return T.sum(out * (out>0)),out>0
+
+def validcost(pos,neg):
+    out = neg - pos
+    return T.sum(out * (out>0)),out>0, T.sum(out * (out<0))
 
 # -------------------------------------------------
 
@@ -188,6 +192,53 @@ class Embedd(object):
 
 # ---------------------------------------
 
+def SimilarityFunctionl(fnsim,embeddings,leftop,rightop):
+    idxrel = theano.sparse.csr_matrix('idxrel')
+    idxright = theano.sparse.csr_matrix('idxright')
+    idxleft = theano.sparse.csr_matrix('idxleft')
+    lhs = (theano.sparse.dot(embeddings.E,idxleft).T).reshape((1,embeddings.D))
+    rhs = (theano.sparse.dot(embeddings.E,idxright).T).reshape((1,embeddings.D))
+    rel = (theano.sparse.dot(embeddings.E,idxrel).T).reshape((1,embeddings.D))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
+    return theano.function([idxleft,idxright,idxrel],[simi])
+
+def SimilarityFunctionrightl(fnsim,embeddings,leftop,rightop,subtensorspec = None):
+    idxrel = theano.sparse.csr_matrix('idxrel')
+    idxleft = theano.sparse.csr_matrix('idxleft')
+    lhs = (theano.sparse.dot(embeddings.E,idxleft).T).reshape((1,embeddings.D))
+    if subtensorspec == None:
+        rhs = embeddings.E.T
+    else:
+        rhs = embeddings.E[:,:subtensorspec].T
+    rel = (theano.sparse.dot(embeddings.E,idxrel).T).reshape((1,embeddings.D))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
+    return theano.function([idxleft,idxrel],[simi])
+
+def SimilarityFunctionleftl(fnsim,embeddings,leftop,rightop,subtensorspec = None):
+    idxrel = theano.sparse.csr_matrix('idxrel')
+    idxright = theano.sparse.csr_matrix('idxright')
+    rhs = (theano.sparse.dot(embeddings.E,idxright).T).reshape((1,embeddings.D))
+    if subtensorspec == None:
+        lhs = embeddings.E.T
+    else:
+        lhs = embeddings.E[:,:subtensorspec].T
+    rel = (theano.sparse.dot(embeddings.E,idxrel).T).reshape((1,embeddings.D))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
+    return theano.function([idxright,idxrel],[simi])
+
+def SimilarityFunctionrell(fnsim,embeddings,leftop,rightop,subtensorspec = None):
+    idxright = theano.sparse.csr_matrix('idxright')
+    idxleft = theano.sparse.csr_matrix('idxleft')
+    lhs = (theano.sparse.dot(embeddings.E,idxleft).T).reshape((1,embeddings.D))
+    if subtensorspec == None:
+        rel = embeddings.E.T
+    else:
+        rel = embeddings.E[:,:subtensorspec].T
+    rhs = (theano.sparse.dot(embeddings.E,idxright).T).reshape((1,embeddings.D))
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
+    return theano.function([idxleft,idxright],[simi])
+
+
 def SimilarityFunction(fnsim,embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxright')
@@ -198,59 +249,119 @@ def SimilarityFunction(fnsim,embeddings,leftop,rightop):
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright,idxrel],[simi])
 
-def SimilarityFunctionright(fnsim,embeddings,leftop,rightop):
+def SimilarityFunctionright(fnsim,embeddings,leftop,rightop,subtensorspec = None):
     idxrel = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
     lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
-    rhs = embeddings.E.T
+    if subtensorspec != None:
+        rhs = (embeddings.E[:,:subtensorspec]).T
+    else:
+        rhs = embeddings.E.T
     rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxrel],[simi])
 
-def SimilarityFunctionleft(fnsim,embeddings,leftop,rightop):
+def SimilarityFunctionleft(fnsim,embeddings,leftop,rightop,subtensorspec = None):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxright')
     rhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
-    lhs = embeddings.E.T
+    if subtensorspec != None:
+        lhs = (embeddings.E[:,:subtensorspec]).T
+    else:
+        lhs = embeddings.E.T
     rel = (embeddings.E[:,idxrel]).reshape((1,embeddings.D))
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxright,idxrel],[simi])
 
-def SimilarityFunctionrel(fnsim,embeddings,leftop,rightop):
+def SimilarityFunctionrel(fnsim,embeddings,leftop,rightop,subtensorspec = None):
     idxright = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
     lhs = (embeddings.E[:,idxleft]).reshape((1,embeddings.D))
     rel = embeddings.E.T
-    lhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
+    if subtensorspec != None:
+        rel = (embeddings.E[:,:subtensorspec]).T
+    else:
+        rel = embeddings.E.T
+    rhs = (embeddings.E[:,idxright]).reshape((1,embeddings.D))
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright],[simi])
 
-def getnclosest(N, idx2concept, concept2def, simfn, idx1, idx2, lhs = True, emb = False):
-    ll = simfn(idx1,idx2)[0]
+
+
+
+def getnclosest(N, idx2lemme, lemme2idx, idx2synset, synset2idx, synset2def, synset2concept, concept2synset, simfn, part1, part2, typ = 1, emb = False):
+    idx1 = []
+    str1 = []
+    idx2 = []
+    str2 = []
+    vec1 = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,1),dtype=theano.config.floatX)
+    for i in part1:
+        if i in lemme2idx.keys():
+            idx1 += [lemme2idx[i]]
+            vec1[idx1[-1],0] += 1/float(len(part1))
+            str1 += ['-'+i]
+        elif i in synset2idx.keys():
+            idx1 += [synset2idx[i]]
+            vec1[idx1[-1],0] += 1/float(len(part1))
+            str1 += ['-'+synset2concept[i]]
+        else:
+            idx1 += [synset2idx[concept2synset[i]]]
+            vec1[idx1[-1],0] += 1/float(len(part1))
+            str1 += ['-'+i]
+    vec2=scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,1),dtype=theano.config.floatX)
+    for i in part2:
+        if i in lemme2idx.keys():
+            idx2 += [lemme2idx[i]]
+            vec2[idx2[-1],0] += 1/float(len(part2))
+            str2 += ['-'+i]
+        elif i in synset2idx.keys():
+            idx2 += [synset2idx[i]]
+            vec2[idx2[-1],0] += 1/float(len(part2))
+            str2 += ['-'+synset2concept[i]]
+        else:
+            idx2 += [synset2idx[concept2synset[i]]]
+            vec2[idx2[-1],0] += 1/float(len(part2))
+            str2 += ['-'+i]
+    ll = (simfn(vec1,vec2)[0]).flatten()
     llo = numpy.argsort(ll)[::-1]
     llt = ll[llo]
     tt = ''
+    txt1 =''
+    for i in str1:
+        txt1 += i
+    txt2 = ''
+    for i in str2:
+        txt2 += i 
     if emb:
-        tt += 'Similar to: %s : %s\n'%(idx2concept[idx1], concept2def[idx2concept[idx1]])
+        tt += 'Similar to: %s\n'%( txt1 )
     else:
-        if lhs:
-            tt += '???? %s %s : %s\n'%( idx2concept[idx2],idx2concept[idx1], concept2def[idx2concept[idx1]])
-        else:
-            tt += '%s %s ????: %s\n'%( idx2concept[idx1],idx2concept[idx2], concept2def[idx2concept[idx1]])
+        if typ == 1:
+            tt += '???? %s %s\n'%( txt2, txt1 )
+        elif typ == 2:
+            tt += '%s %s ????\n'%( txt1, txt2 )
+        elif typ == 3:
+            tt += '%s ???? %s\n'%( txt1, txt2 )
     for i in range(N):
-        tt += 'Rank %s %s %s : %s\n'%(i+1,llt[i],idx2concept[llo[i]], concept2def[idx2concept[llo[i]]])
+        if llo[i] in idx2lemme.keys():
+            stro = idx2lemme[llo[i]]
+        elif idx2synset[llo[i]][0] == '_':
+            stro = llo[i]
+        else:
+            stro = synset2concept[idx2synset[llo[i]]] + ' : ' + synset2def[idx2synset[llo[i]]]
+        tt += 'Rank %s %s %s\n'%(i+1,llt[i],stro)
     return tt
 
 import theano.sparse
 import scipy.sparse
 
-def TrainFunction(fnsim,embeddings, leftop, rightop):
+def TrainFunction(fnsim,embeddings, leftop, rightop, marge = 1.0, relb = True):
     # inputs 
     inpposr = theano.sparse.csr_matrix()
     inpposl = theano.sparse.csr_matrix()
     inpposo = theano.sparse.csr_matrix()
     inpposln = theano.sparse.csr_matrix()
     inpposrn = theano.sparse.csr_matrix()
+    inpposon = theano.sparse.csr_matrix()
     lrparams = T.scalar('lrparams')
     lrembeddings = T.scalar('lrembeddings')
     # graph
@@ -259,31 +370,98 @@ def TrainFunction(fnsim,embeddings, leftop, rightop):
     rel = theano.sparse.dot(embeddings.E,inpposo).T
     lhsn = theano.sparse.dot(embeddings.E,inpposln).T
     rhsn = theano.sparse.dot(embeddings.E,inpposrn).T
-    simi = dotsim(leftop(lhs,rel),rightop(rhs,rel))
+    reln = theano.sparse.dot(embeddings.E,inpposon).T
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     siminl = fnsim(leftop(lhsn,rel),rightop(rhs,rel))
     siminr = fnsim(leftop(lhs,rel),rightop(rhsn,rel))
-    costl,outl = margincost(simi,siminl)
-    costr,outr = margincost(simi,siminr)
-    cost = costl + costr
-    out = T.concatenate([outl,outr])
-    gradientsparams = T.grad(cost, leftop.params + rightop.params)
+    simino = fnsim(leftop(lhs,reln),rightop(rhs,reln))
+    costl,outl = margincost(simi,siminl,marge)
+    costr,outr = margincost(simi,siminr,marge)
+    costo,outo = margincost(simi,simino,marge)
+    if relb:
+        cost = costl + costr + costo
+    else:
+        cost = costl + costr
+    out = T.concatenate([outl,outr,outo])
+    if hasattr(fnsim,'params'):
+        gradientsparams = T.grad(cost, leftop.params + rightop.params + fnsim.params)
+        updates = dict((i,i-lrparams*j) for i,j in zip(leftop.params + rightop.params + fnsim.params, gradientsparams))
+    else:
+        gradientsparams = T.grad(cost, leftop.params + rightop.params)
+        updates = dict((i,i-lrparams*j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
     gradientsembeddings = T.grad(cost, embeddings.E)
+    newE = embeddings.E - lrembeddings * gradientsembeddings
     ############### scaling variants
     #updates = dict((i,i-lrparams/(1+T.cast(T.sum(out),dtype=theano.config.floatX))*j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
     #maskE = T.vector('maskE')
     #newE = (embeddings.E - lrembeddings/(1+maskE*T.cast(T.sum(out),dtype=theano.config.floatX)) * gradientsembeddings)
     ###############
-    updates = dict((i,i-lrparams*j) for i,j in zip(leftop.params + rightop.params, gradientsparams))
-    newE = embeddings.E - lrembeddings * gradientsembeddings
     #newEnorm = newE / T.sqrt(T.sum(newE*newE,axis=0))
     updates.update({embeddings.E:newE})
-    return theano.function([lrparams,lrembeddings,inpposl, inpposr, inpposo, inpposln, inpposrn], [cost,costl,costr,T.sum(out),T.sum(outl),T.sum(outr),lhs,rhs,rel,simi,siminl,siminr],updates=updates)
+    return theano.function([lrparams,lrembeddings,inpposl, inpposr, inpposo, inpposln, inpposrn,inpposon], [cost,costl,costr,costo,T.sum(out),T.sum(outl),T.sum(outr),T.sum(outo),lhs,rhs,rel,simi,siminl,siminr,simino],updates=updates)
+
+def BatchSimilarityFunction(fnsim,embeddings, leftop, rightop):
+    # inputs
+    inpposr = theano.sparse.csr_matrix()
+    inpposl = theano.sparse.csr_matrix()
+    inpposo = theano.sparse.csr_matrix()
+    # graph
+    lhs = theano.sparse.dot(embeddings.E,inpposl).T
+    rhs = theano.sparse.dot(embeddings.E,inpposr).T
+    rel = theano.sparse.dot(embeddings.E,inpposo).T
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
+    return theano.function([inpposl, inpposr, inpposo], [simi])
+
+
+def BatchValidFunction(fnsim,embeddings, leftop, rightop):
+    # inputs
+    inpposr = theano.sparse.csr_matrix()
+    inpposl = theano.sparse.csr_matrix()
+    inpposo = theano.sparse.csr_matrix()
+    inpposln = theano.sparse.csr_matrix()
+    inpposrn = theano.sparse.csr_matrix()
+    inpposon = theano.sparse.csr_matrix()
+    # graph
+    lhs = theano.sparse.dot(embeddings.E,inpposl).T
+    rhs = theano.sparse.dot(embeddings.E,inpposr).T
+    rel = theano.sparse.dot(embeddings.E,inpposo).T
+    lhsn = theano.sparse.dot(embeddings.E,inpposln).T
+    rhsn = theano.sparse.dot(embeddings.E,inpposrn).T
+    reln = theano.sparse.dot(embeddings.E,inpposon).T
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
+    siminl = fnsim(leftop(lhsn,rel),rightop(rhs,rel))
+    siminr = fnsim(leftop(lhs,rel),rightop(rhsn,rel))
+    simino = fnsim(leftop(lhs,reln),rightop(rhs,reln))
+    costl,outl,margel = validcost(simi,siminl)
+    costr,outr,marger = validcost(simi,siminr)
+    costo,outo,margeo = validcost(simi,simino)
+    cost = costl + costr + costo
+    out = T.concatenate([outl,outr,outo])
+    return theano.function([inpposl, inpposr, inpposo, inpposln, inpposrn,inpposon], [cost,costl,costr,costo,T.sum(out),T.sum(outl),T.sum(outr),T.sum(outo),margel,marger,margeo,lhs,rhs,rel,simi,siminl,siminr,simino])
+
 
 
 def calctestval(sl,sr,idxtl,idxtr,idxto):
     errl = []
     errr = []
     for l,o,r in zip(idxtl,idxto,idxtr):
-        errl += [numpy.argsort(numpy.argsort(sl(r,o)[0])[::-1]).flatten()[l]]
-        errr += [numpy.argsort(numpy.argsort(sr(l,o)[0])[::-1]).flatten()[r]]
+        errl += [numpy.argsort(numpy.argsort((sl(r,o)[0]).flatten())[::-1]).flatten()[l]]
+        errr += [numpy.argsort(numpy.argsort((sr(l,o)[0]).flatten())[::-1]).flatten()[r]]
     return numpy.mean(errl+errr),numpy.std(errl+errr),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr)
+
+
+def calctestscore(sl,sr,so,posl,posr,poso):
+    errl = []
+    errr = []
+    erro = []
+    for i in range(posl.shape[1]):
+        rankl = numpy.argsort((sl(posr[:,i],poso[:,i])[0]).flatten())
+        for l in posl[:,i].nonzero()[0]:
+            errl += [numpy.argsort(rankl[::-1]).flatten()[l]]
+        rankr = numpy.argsort((sr(posl[:,i],poso[:,i])[0]).flatten())
+        for r in posr[:,i].nonzero()[0]:
+            errr += [numpy.argsort(rankr[::-1]).flatten()[r]]
+        ranko = numpy.argsort((so(posl[:,i],posr[:,i])[0]).flatten())
+        for o in poso[:,i].nonzero()[0]:
+            erro += [numpy.argsort(ranko[::-1]).flatten()[0]]
+    return numpy.mean(errl+errr+erro),numpy.std(errl+errr+erro),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr),numpy.mean(erro),numpy.std(erro)
