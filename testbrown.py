@@ -11,7 +11,11 @@ def normafunc(x):
 def softmaxfunc(x):
     return numpy.exp(x-numpy.max(x))/sum(numpy.exp(x-numpy.max(x)))
 
-loadmodel = '/mnt/scratch/bengio/glorotxa/data/exp/glorotxa_db/wakabstfinal/98/model.pkl'
+#loadmodel = '/mnt/scratch/bengio/glorotxa/data/exp/glorotxa_db/wakabstfinal/189/model.pkl'
+loadmodel = '/mnt/scratch/bengio/glorotxa/data/exp/glorotxa_db/wakabstfinal2/15/model.pkl'
+
+
+
 
 f = open(loadmodel)
 embeddings = cPickle.load(f)
@@ -24,12 +28,17 @@ simfn = eval('dotsim')
 
 simifunc = BatchSimilarityFunction(simfn,embeddings,leftop,rightop)
 
-posl = cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-WSD-lhs.pkl'))
-posr = cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-WSD-rhs.pkl'))
-poso = cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-WSD-rel.pkl'))
-dicto = cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-WSD-dict.pkl'))
-lab = cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-WSD-lab.pkl'))
-freq = cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-WSD-freq.pkl'))
+
+posl = (cPickle.load(open('Brown-WSD-lhs.pkl'))).tocsr()
+posr = (cPickle.load(open('Brown-WSD-rhs.pkl'))).tocsr()
+poso = (cPickle.load(open('Brown-WSD-rel.pkl'))).tocsr()
+dicto = (cPickle.load(open('Brown-WSD-dict.pkl')))
+lab = (cPickle.load(open('Brown-WSD-lab.pkl')))
+freq = (cPickle.load(open('Brown-WSD-freq.pkl')))
+
+posl = posl[:embeddings.E.value.shape[1],:]
+posr = posr[:embeddings.E.value.shape[1],:]
+poso = poso[:embeddings.E.value.shape[1],:]
 
 listrank = simifunc(posl,posr,poso)[0]
 
@@ -120,11 +129,12 @@ for idx,i in enumerate(dicto.keys()):
             freqvn +=1
         randvn += (len(listtmp)-1)/float(len(listtmp))
         ctn+=1
-    print randv/float(idx+1),modelv/float(idx+1),freqv/float(idx+1),linv/float(idx+1),softv/float(idx+1),addlv/float(idx+1),addsoftv/float(idx+1)
+    #print randv/float(idx+1),modelv/float(idx+1),freqv/float(idx+1),linv/float(idx+1),softv/float(idx+1),addlv/float(idx+1),addsoftv/float(idx+1)
 
 print randvs/float(ct),modelvs/float(ct),freqvs/float(ct),linvs/float(ct),softvs/float(ct),addlvs/float(ct),addsoftvs/float(ct)
 print randvn/float(ctn),modelvn/float(ctn),freqvn/float(ctn),linvn/float(ctn),softvn/float(ctn),addlvn/float(ctn),addsoftvn/float(ctn)
 # unambiguous instance:
-idx = idx+1+7737
 
+print randv/float(idx+1),modelv/float(idx+1),freqv/float(idx+1),linv/float(idx+1),softv/float(idx+1),addlv/float(idx+1),addsoftv/float(idx+1)
+idx = idx+1+7737
 print randv/float(idx+1),modelv/float(idx+1),freqv/float(idx+1),linv/float(idx+1),softv/float(idx+1),addlv/float(idx+1),addsoftv/float(idx+1)
