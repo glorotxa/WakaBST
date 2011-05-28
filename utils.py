@@ -13,10 +13,10 @@ nbtest = 100
 testall = 5
 savepath = 'expe50'
 simfnstr = 'dot'
-listconcept = [['__produce_VB_4', '__investigation_NN_1' ,'__atlanta_NN_1' ,'__irregularity_NN_1' ,'__take_place_VB_1', '__evidence_NN_1'], ['__amateur_NN_1', '__contact_NN_1', '__collector_NN_1', '__commercial_JJ_1', '__propagandist_NN_1'], ['__american_NN_1','__knowledge_NN_1','__folklore_NN_1','__have_VB_1'],['__america_NN_1']]
-listrel = [['__say_VB_1'],['__come_VB_5'],['__spread_VB_1']]
+listconcept = [['__u.s._NN_1','__army_NN_1'],['__brain_NN_1'], ['__auto_NN_1'],['__cat_NN_1']]
+listrel = [['__eat_VB_1'],['__drive_VB_1'],['__defend_VB_1']]
 nbrank = 10
-loadmodel = '/mnt/scratch/bengio/glorotxa/data/exp/glorotxa_db/wakabst2/201/model.pkl'
+loadmodel = '/mnt/scratch/bengio/glorotxa/data/exp/glorotxa_db/wakabst/24/model.pkl'
 
 
 synset2lemme = cPickle.load(open('synset2lemme.pkl','r'))

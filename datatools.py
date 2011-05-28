@@ -6,8 +6,6 @@ dat = f.readlines()
 f.close()
 dat = dat
 
-
-
 lemme2synset = {}
 lemme2freq = {}
 
@@ -20,6 +18,10 @@ for idx,i in enumerate(dat):
     freqlist = list(numpy.asarray(frequence.split(' '),dtype='float64'))
     lemme2synset.update({lemme:synlist})
     lemme2freq.update({lemme:freqlist})
+
+for i in ['_PropertyOf','_MadeOf','_DefinedAs','_PartOf','_IsA','_UsedFor','_CapableOfReceivingAction','_LocationOf','_SubeventOf','_LastSubeventOf','_PrerequisiteEventOf','_FirstSubeventOf','_EffectOf','_DesirousEffectOf','_DesireOf','_MotivationOf','_CapableOf']:
+    lemme2synset.update({i:[i]})
+    lemme2freq.update({i:[1.0]})
 
 
 import cPickle
@@ -158,9 +160,14 @@ def parseline(line):
     return lhs,rel,rhs
 
 if False:
+    numpy.random.seed(753)
     speciallist = ['_substance_holonym','_attribute','_substance_meronym','_entailment','_cause']
-    for datatyp in ['train','val','test']:
-        for nolemme in [True,False]:
+    for nolemme in [1,2,3]:
+        if nolemme==1:
+            ll = ['train','val','test']
+        else:
+            ll = ['train']
+        for datatyp in ll:
             f = open('/data/lisa/data/NLU/wordnet3.0-synsets/filtered-data/%s-WordNet3.0-filtered-synsets-relations-anto.txt'%datatyp,'r')
 
             dat = f.readlines()
@@ -170,13 +177,15 @@ if False:
             for i in dat:
                 lhs,rel,rhs = parseline(i[:-1])
                 if rel[0] not in speciallist:
-                    ct += 1
-                    if not nolemme:
+                    if nolemme==1 or nolemme==3:
+                       ct += 1
+                    if nolemme==2:
                         for j in synset2lemme[lhs[0]]:
                             if len(lemme2synset[j])!=1:
                                 ct += 1
                         for j in synset2lemme[rel[0]]:
                             if len(lemme2synset[j])!=1:
+                                assert False
                                 ct += 1
                         for j in synset2lemme[rhs[0]]:
                             if len(lemme2synset[j])!=1:
@@ -185,7 +194,7 @@ if False:
             print len(dat),ct
 
             import scipy.sparse
-            if not nolemme or datatyp == 'train':
+            if datatyp == 'train':
                 posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
                 posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
                 poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
@@ -197,11 +206,17 @@ if False:
             for i in dat:
                 lhs,rel,rhs = parseline(i[:-1])
                 if rel[0] not in speciallist:
-                    posl[synset2idx[lhs[0]],ct]=1
-                    posr[synset2idx[rhs[0]],ct]=1
-                    poso[synset2idx[rel[0]],ct]=1
-                    ct+=1
-                    if not nolemme:
+                    if nolemme==1:
+                        posl[synset2idx[lhs[0]],ct]=1
+                        posr[synset2idx[rhs[0]],ct]=1
+                        poso[synset2idx[rel[0]],ct]=1
+                        ct+=1
+                    if nolemme==3:
+                        posl[lemme2idx[synset2lemme[lhs[0]][numpy.random.permutation(len(synset2lemme[lhs[0]]))[0]]],ct]=1
+                        posr[lemme2idx[synset2lemme[rhs[0]][numpy.random.permutation(len(synset2lemme[rhs[0]]))[0]]],ct]=1
+                        poso[lemme2idx[synset2lemme[rel[0]][numpy.random.permutation(len(synset2lemme[rel[0]]))[0]]],ct]=1
+                        ct+=1
+                    if nolemme==2:
                         for j in synset2lemme[lhs[0]]:
                             if len(lemme2synset[j])!=1: 
                                 posl[lemme2idx[j],ct]=1
@@ -210,6 +225,7 @@ if False:
                                 ct += 1
                         for j in synset2lemme[rel[0]]:
                             if len(lemme2synset[j])!=1:
+                                assert False
                                 posl[synset2idx[lhs[0]],ct]=1
                                 posr[synset2idx[rhs[0]],ct]=1
                                 poso[lemme2idx[j],ct]=1
@@ -221,14 +237,18 @@ if False:
                                 poso[synset2idx[rel[0]],ct]=1
                                 ct += 1
             
-            if not nolemme:
+            if nolemme==1:
                 f = open('WordNet3.0-%s-lhs.pkl'%datatyp,'w')
                 g = open('WordNet3.0-%s-rhs.pkl'%datatyp,'w')
                 h = open('WordNet3.0-%s-rel.pkl'%datatyp,'w')
-            else:
-                f = open('WordNet3.0-easy-%s-lhs.pkl'%datatyp,'w')
-                g = open('WordNet3.0-easy-%s-rhs.pkl'%datatyp,'w')
-                h = open('WordNet3.0-easy-%s-rel.pkl'%datatyp,'w')
+            if nolemme==2:
+                f = open('WordNet3.0-syle-%s-lhs.pkl'%datatyp,'w')
+                g = open('WordNet3.0-syle-%s-rhs.pkl'%datatyp,'w')
+                h = open('WordNet3.0-syle-%s-rel.pkl'%datatyp,'w')
+            if nolemme==3:
+                f = open('WordNet3.0-lemme-%s-lhs.pkl'%datatyp,'w')
+                g = open('WordNet3.0-lemme-%s-rhs.pkl'%datatyp,'w')
+                h = open('WordNet3.0-lemme-%s-rel.pkl'%datatyp,'w')
                 
             cPickle.dump(posl.tocsr(),f,-1)
             cPickle.dump(posr.tocsr(),g,-1)
@@ -238,13 +258,38 @@ if False:
             g.close()
             h.close()
 
+
+
+
 if False:
     totalsize = 0
     for nbf in range(131):
         f = open('/data/lisa/data/NLU/converted-wikipedia/nlu-data/triplets-file-%s.dat'%nbf,'r')
         dat = f.readlines()
         f.close()
-        totalsize+=len(dat)
+        for i in dat:
+            totalsize +=1
+            bb = False
+            lhs,rel,rhs = parseline(i[:-1])
+            if lhs[-1]=='':
+                lhs = lhs[:-1]
+            if rhs[-1]=='':
+                rhs = rhs[:-1]
+            if rel[-1]=='':
+                rel = rel[:-1]
+            for j in lhs:
+                if len(lemme2synset[j])!=1:
+                    bb = True
+                    totalsize+=1
+            for j in rhs:
+                if len(lemme2synset[j])!=1:
+                    bb = True
+                    totalsize+=1
+            for j in rel:
+                if len(lemme2synset[j])!=1:
+                    bb = True
+                    totalsize+=1
+            #assert bb
     f = open('/data/lisa/data/NLU/converted-wikipedia/nlu-data-synsets/unambiguous-triplets.dat','r')
     dat = f.readlines()
     totalsize+=len(dat)
@@ -253,10 +298,9 @@ if False:
     posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,totalsize),dtype='float32')
     posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,totalsize),dtype='float32')
     poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,totalsize),dtype='float32')
-
-
-    currentidx = 0
-
+    
+    numpy.random.seed(888)
+    ct = 0
     for nbf in range(131):
         f = open('/data/lisa/data/NLU/converted-wikipedia/nlu-data/triplets-file-%s.dat'%nbf,'r')
         dat = f.readlines()
@@ -269,18 +313,55 @@ if False:
                 rhs = rhs[:-1]
             if rel[-1]=='':
                 rel = rel[:-1]
-            for j in lhs:
-                posl[lemme2idx[j],currentidx]+=1/float(len(lhs))
-            for j in rhs:
-                posr[lemme2idx[j],currentidx]+=1/float(len(rhs))
-            for j in rel:
-                poso[lemme2idx[j],currentidx]+=1/float(len(rel))
-            currentidx += 1 
-
+            for i in lhs:
+                posl[lemme2idx[i],ct]+=1/float(len(lhs))
+            for i in rel:
+                poso[lemme2idx[i],ct]+=1/float(len(rel))
+            for i in rhs:
+                posr[lemme2idx[i],ct]+=1/float(len(rhs))
+            ct+=1
+            for idxtmp,k in enumerate(lhs):
+                if len(lemme2synset[k])>1:
+                    listfreqtmp = numpy.cumsum(lemme2freq[k])
+                    idxcc = (list(listfreqtmp >= numpy.random.uniform())).index(True)
+                    l = lemme2synset[k][idxcc]
+                    for j in list(lhs[:idxtmp])+list(lhs[(idxtmp+1):]):
+                        posl[lemme2idx[j],ct]+=1/float(len(lhs))
+                    posl[synset2idx[l],ct]+=1/float(len(lhs))
+                    for j in rel:
+                        poso[lemme2idx[j],ct]+=1/float(len(rel))
+                    for j in rhs:
+                        posr[lemme2idx[j],ct]+=1/float(len(rhs))
+                    ct+=1 
+            for idxtmp,k in enumerate(rel):
+                if len(lemme2synset[k])>1:
+                    listfreqtmp = numpy.cumsum(lemme2freq[k])
+                    idxcc = (list(listfreqtmp >= numpy.random.uniform())).index(True)
+                    l = lemme2synset[k][idxcc]
+                    for j in list(rel[:idxtmp])+list(rel[(idxtmp+1):]):
+                        poso[lemme2idx[j],ct]+=1/float(len(rel))
+                    poso[synset2idx[l],ct]+=1/float(len(rel))
+                    for j in lhs:
+                        posl[lemme2idx[j],ct]+=1/float(len(lhs))
+                    for j in rhs:
+                        posr[lemme2idx[j],ct]+=1/float(len(rhs))
+                    ct+=1
+            for idxtmp,k in enumerate(rhs):
+                if len(lemme2synset[k])>1:
+                    listfreqtmp = numpy.cumsum(lemme2freq[k])
+                    idxcc = (list(listfreqtmp >= numpy.random.uniform())).index(True)
+                    l = lemme2synset[k][idxcc]
+                    for j in list(rhs[:idxtmp])+list(rhs[(idxtmp+1):]):
+                        posr[lemme2idx[j],ct]+=1/float(len(rhs))
+                    posr[synset2idx[l],ct]+=1/float(len(rhs))
+                    for j in rel:
+                        poso[lemme2idx[j],ct]+=1/float(len(rel))
+                    for j in lhs:
+                        posl[lemme2idx[j],ct]+=1/float(len(lhs))
+                    ct+=1 
 
     f = open('/data/lisa/data/NLU/converted-wikipedia/nlu-data-synsets/unambiguous-triplets.dat','r')
     dat = f.readlines()
-    print len(dat)
     for i in dat:
         lhs,rel,rhs = parseline(i[:-1])
         if lhs[-1]=='':
@@ -290,25 +371,29 @@ if False:
         if rel[-1]=='':
             rel = rel[:-1]
         for j in lhs:
-            posl[synset2idx[j],currentidx]+=1/float(len(lhs))
+            posl[synset2idx[j],ct]+=1/float(len(lhs))
         for j in rhs:
-            posr[synset2idx[j],currentidx]+=1/float(len(rhs))
+            posr[synset2idx[j],ct]+=1/float(len(rhs))
         for j in rel:
-            poso[synset2idx[j],currentidx]+=1/float(len(rel))
-        currentidx += 1
+            poso[synset2idx[j],ct]+=1/float(len(rel))
+        ct += 1
 
-    assert currentidx == totalsize
+    assert ct == totalsize
     print "finished"
+    numpy.random.seed(999)
     neworder = numpy.random.permutation(totalsize)
 
     poso = (poso.tocsr())[:,neworder]
     posl = (posl.tocsr())[:,neworder]
     posr = (posr.tocsr())[:,neworder]
+    posos = (posos.tocsr())[:,neworder]
+    posls = (posls.tocsr())[:,neworder]
+    posrs = (posrs.tocsr())[:,neworder]
 
-    f = open('Wikilemmes-lhs.pkl','w')
-    g = open('Wikilemmes-rhs.pkl','w')
-    h = open('Wikilemmes-rel.pkl','w')
-
+    f = open('Wikisample-lhs.pkl','w')
+    g = open('Wikisample-rhs.pkl','w')
+    h = open('Wikisample-rel.pkl','w')
+    
     cPickle.dump(posl,f,-1)
     cPickle.dump(posr,g,-1)
     cPickle.dump(poso,h,-1)
@@ -317,9 +402,7 @@ if False:
     g.close()
     h.close()
 
-
-
-
+if False:
     f = open('/data/lisa/data/NLU/converted-wikipedia/nlu-data-synsets/lessambiguous-triplets.dat','r')
     dat = f.readlines()
 
@@ -360,13 +443,16 @@ if False:
     poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
     print len(dat),ct
 
+    
     f = open('/data/lisa/data/NLU/converted-wikipedia/nlu-data-synsets/lessambiguous-triplets.dat','r')
     dat = f.readlines()
-
-
+    
+    numpy.random.seed(222) 
+    neworder = numpy.random.permutation(len(dat))
     currentidx = 0
-
-    for i in dat:
+    numpy.random.seed(666)
+    for iii in neworder:
+        i = dat[iii]
         onlyonesynset = True
         lhs,rel,rhs = parseline(i[:-1])
         if lhs[-1]=='':
@@ -433,7 +519,6 @@ if False:
                         posl[lemme2idx[k],currentidx]+=1/float(len(lhs))
                     currentidx+=1
 
-
     assert currentidx == ct
 
     #neworder = numpy.random.permutation(ct)
@@ -441,34 +526,514 @@ if False:
     poso = (poso.tocsr())#[:,neworder]
     posl = (posl.tocsr())#[:,neworder]
     posr = (posr.tocsr())#[:,neworder]
-
     poson = (poson.tocsr())#[:,neworder]
     posln = (posln.tocsr())#[:,neworder]
     posrn = (posrn.tocsr())#[:,neworder]
 
+    posos = (posos.tocsr())#[:,neworder]
+    posls = (posls.tocsr())#[:,neworder]
+    posrs = (posrs.tocsr())#[:,neworder]
+    posons = (posons.tocsr())#[:,neworder]
+    poslns = (poslns.tocsr())#[:,neworder]
+    posrns = (posrns.tocsr())#[:,neworder]
 
     f = open('Wikisuper-lhs.pkl','w')
     g = open('Wikisuper-rhs.pkl','w')
     h = open('Wikisuper-rel.pkl','w')
-
     i = open('Wikisuper-lhsn.pkl','w')
     j = open('Wikisuper-rhsn.pkl','w')
     k = open('Wikisuper-reln.pkl','w')
 
-
     cPickle.dump(posl,f,-1)
     cPickle.dump(posr,g,-1)
     cPickle.dump(poso,h,-1)
-
     cPickle.dump(posln,i,-1)
     cPickle.dump(posrn,j,-1)
     cPickle.dump(poson,k,-1)
 
+    f.close()
+    g.close()
+    h.close()
+    i.close()
+    j.close()
+    k.close()
+
+
+if True:
+    f = open('/data/lisa/data/NLU/semcor3.0/brown-synsets/Brown-filtered-triplets-unambiguous-lemmas.dat','r')
+    g = open('/data/lisa/data/NLU/semcor3.0/brown-synsets/Brown-filtered-triplets-unambiguous-synsets.dat','r')
+
+    dat1 = f.readlines()
+    f.close()
+    dat2 = g.readlines()
+    g.close()
+
+    missed = 0
+    ct = 0
+    for i,k in zip(dat1,dat2):
+        lhs,rel,rhs = parseline(i[:-1])
+        lhsr,relr,rhsr = parseline(k[:-1])
+        for j in lhs:
+            if len(lemme2synset[j])>1:
+                ct += (len(lemme2synset[j]))
+            else:
+                missed += 1
+        j = rel[0]
+        if len(lemme2synset[j])>1:
+            ct += len(lemme2synset[j])
+        else:
+            missed += 1
+        for j in rhs:
+            if len(lemme2synset[j])>1:
+                ct += len(lemme2synset[j])
+            else:
+                missed += 1
+    print ct,missed
+
+    import scipy.sparse
+    posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+
+    idxcurrent = 0
+    idxex = 0
+    dictidx ={}
+    freqlist = []
+    label = []
+    for i,k in zip(dat1,dat2):
+        lhs,rel,rhs = parseline(i[:-1])
+        lhsr,relr,rhsr = parseline(k[:-1])
+
+        for idxtmp,k in enumerate(lhs):
+            if len(lemme2synset[k])>1:
+                dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),lhsr[idxtmp] in synset2neg.keys())})
+                for l,ff in zip(lemme2synset[k],lemme2freq[k]):
+                    for j in list(lhs[:idxtmp])+list(lhs[(idxtmp+1):]):
+                        posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+                    posl[synset2idx[l],idxcurrent]+=1/float(len(lhs))
+                    freqlist+=[ff]
+                    if l == lhsr[idxtmp]:
+                        label += [1]
+                    else:
+                        label += [0]
+                    j = rel[0]
+                    poso[lemme2idx[j],idxcurrent]+=1
+                    for j in rhs:
+                        posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+                    idxcurrent+=1
+                idxex+=1
+        k = rel[0]
+        if len(lemme2synset[k])>1:
+            dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),relr[0] in synset2neg.keys())})
+            for l,ff in zip(lemme2synset[k],lemme2freq[k]):
+                for j in lhs:
+                    posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+                poso[synset2idx[l],idxcurrent]+=1
+                freqlist+=[ff]
+                if l == relr[0]:
+                    label += [1]
+                else:
+                    label += [0]
+                for j in rhs:
+                    posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+                idxcurrent+=1
+            idxex+=1
+
+        for idxtmp,k in enumerate(rhs):
+            if len(lemme2synset[k])>1:
+                dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),rhsr[idxtmp] in synset2neg.keys())})
+                for l,ff in zip(lemme2synset[k],lemme2freq[k]):
+                    for j in list(rhs[:idxtmp])+list(rhs[(idxtmp+1):]):
+                        posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+                    posr[synset2idx[l],idxcurrent]+=1/float(len(rhs))
+                    freqlist+=[ff]
+                    if l == rhsr[idxtmp]:
+                        label += [1]
+                    else:
+                        label += [0]
+                    j = rel[0]
+                    poso[lemme2idx[j],idxcurrent]+=1
+                    for j in lhs:
+                        posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+                    idxcurrent+=1
+                idxex+=1
+
+    print idxcurrent,idxex,len(freqlist),len(dictidx),len(label),sum(label)
+    f = open('Brown-WSD-lhs.pkl','w')
+    g = open('Brown-WSD-rhs.pkl','w')
+    h = open('Brown-WSD-rel.pkl','w')
+    i = open('Brown-WSD-dict.pkl','w')
+    j = open('Brown-WSD-lab.pkl','w')
+    k = open('Brown-WSD-freq.pkl','w')
+
+    cPickle.dump(posl,f,-1)
+    f.close()
+    cPickle.dump(posr,g,-1)
+    g.close()
+    cPickle.dump(poso,h,-1)
+    h.close()
+    cPickle.dump(dictidx,i,-1)
+    i.close()
+    cPickle.dump(label,j,-1)
+    j.close()
+    cPickle.dump(freqlist,k,-1)
+    k.close()
+
+
+    import scipy.sparse
+    poslS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    posrS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    posoS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    poslL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    posrL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    posoL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    poslLS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    posrLS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    posoLS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+
+    idxcurrent = 0
+    for i,k in zip(dat1,dat2):
+        lhs,rel,rhs = parseline(i[:-1])
+        lhsr,relr,rhsr = parseline(k[:-1])
+        for j,k in zip(lhs,lhsr):
+            poslL[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+            poslS[synset2idx[k],idxcurrent]+=1/float(len(lhs))
+            poslLS[lemme2idx[j],idxcurrent] = synset2idx[k]
+        j = rel[0]
+        k = relr[0]
+        posoL[lemme2idx[j],idxcurrent]+=1
+        posoS[synset2idx[k],idxcurrent]+=1
+        posoLS[lemme2idx[j],idxcurrent] = synset2idx[k]
+        for j,k in zip(rhs,rhsr):
+            posrL[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+            posrS[synset2idx[k],idxcurrent]+=1/float(len(rhs))
+            posrLS[lemme2idx[j],idxcurrent] = synset2idx[k]
+        idxcurrent+=1
+
+    f = open('Brown-lemme-lhs.pkl','w')
+    g = open('Brown-lemme-rhs.pkl','w')
+    h = open('Brown-lemme-rel.pkl','w')
+    i = open('Brown-synset-lhs.pkl','w')
+    j = open('Brown-synset-rhs.pkl','w')
+    k = open('Brown-synset-rel.pkl','w')
+    l = open('Brown-corres-lhs.pkl','w')
+    m = open('Brown-corres-rhs.pkl','w')
+    n = open('Brown-corres-rel.pkl','w')
+
+    cPickle.dump(poslL,f,-1)
+    f.close()
+    cPickle.dump(posrL,g,-1)
+    g.close()
+    cPickle.dump(posoL,h,-1)
+    h.close()
+    cPickle.dump(poslS,i,-1)
+    i.close()
+    cPickle.dump(posrS,j,-1)
+    j.close()
+    cPickle.dump(posoS,k,-1)
+    k.close()
+    cPickle.dump(poslLS,l,-1)
+    l.close()
+    cPickle.dump(posrLS,m,-1)
+    m.close()
+    cPickle.dump(posoLS,n,-1)
+    n.close()
+
+
+if True:
+    f = open('/data/lisa/data/NLU/XWN/extended-wordnet-filtered-lemmas.txt','r')
+    g = open('/data/lisa/data/NLU/XWN/extended-wordnet-filtered-synsets.txt','r')
+
+    dat1 = f.readlines()
+    f.close()
+    dat2 = g.readlines()
+    g.close()
+    numpy.random.seed(468)
+    order = numpy.random.permutation(len(dat1))
+    
+    missed = 0
+    ct = 0
+    for ii in range(5000):
+        i = dat1[order[ii]]
+        k = dat2[order[ii]]
+        lhs,rel,rhs = parseline(i[:-1])
+        lhsr,relr,rhsr = parseline(k[:-1])
+        for j in lhs:
+            if len(lemme2synset[j])>1:
+                ct += (len(lemme2synset[j]))
+            else:
+                missed += 1
+        for j in rel:
+            if len(lemme2synset[j])>1:
+                ct += len(lemme2synset[j])
+            else:
+                missed += 1
+        for j in rhs:
+            if len(lemme2synset[j])>1:
+                ct += len(lemme2synset[j])
+            else:
+                missed += 1
+    print ct,missed
+
+    import scipy.sparse
+    posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+
+    idxcurrent = 0
+    idxex = 0
+    dictidx ={}
+    freqlist = []
+    label = []
+    for ii in range(5000):
+        i = dat1[order[ii]]
+        k = dat2[order[ii]]
+        lhs,rel,rhs = parseline(i[:-1])
+        lhsr,relr,rhsr = parseline(k[:-1])
+
+        for idxtmp,k in enumerate(lhs):
+            if len(lemme2synset[k])>1:
+                dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),lhsr[idxtmp] in synset2neg.keys())})
+                for l,ff in zip(lemme2synset[k],lemme2freq[k]):
+                    for j in list(lhs[:idxtmp])+list(lhs[(idxtmp+1):]):
+                        posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+                    posl[synset2idx[l],idxcurrent]+=1/float(len(lhs))
+                    freqlist+=[ff]
+                    if l == lhsr[idxtmp]:
+                        label += [1]
+                    else:
+                        label += [0]
+                    for j in rel:
+                        poso[lemme2idx[j],idxcurrent]+=1/float(len(rel))
+                    for j in rhs:
+                        posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+                    idxcurrent+=1
+                idxex+=1
+        
+        for idxtmp,k in enumerate(rel):
+            if len(lemme2synset[k])>1:
+                dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),relr[idxtmp] in synset2neg.keys())})
+                for l,ff in zip(lemme2synset[k],lemme2freq[k]):
+                    for j in lhs:
+                        posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+                    for j in list(rel[:idxtmp])+list(rel[(idxtmp+1):]):
+                        poso[lemme2idx[j],idxcurrent]+=1/float(len(rel))
+                    poso[synset2idx[l],idxcurrent]+=1/float(len(rel))
+                    freqlist+=[ff]
+                    if l == relr[idxtmp]:
+                        label += [1]
+                    else:
+                        label += [0]
+                    for j in rhs:
+                        posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+                    idxcurrent+=1
+                idxex+=1
+
+        for idxtmp,k in enumerate(rhs):
+            if len(lemme2synset[k])>1:
+                dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),rhsr[idxtmp] in synset2neg.keys())})
+                for l,ff in zip(lemme2synset[k],lemme2freq[k]):
+                    for j in list(rhs[:idxtmp])+list(rhs[(idxtmp+1):]):
+                        posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+                    posr[synset2idx[l],idxcurrent]+=1/float(len(rhs))
+                    freqlist+=[ff]
+                    if l == rhsr[idxtmp]:
+                        label += [1]
+                    else:
+                        label += [0]
+                    for j in rel:
+                        poso[lemme2idx[j],idxcurrent]+=1/float(len(rel))
+                    for j in lhs:
+                        posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+                    idxcurrent+=1
+                idxex+=1
+
+    print idxcurrent,idxex,len(freqlist),len(dictidx),len(label),sum(label)
+    f = open('XWN-WSD-lhs.pkl','w')
+    g = open('XWN-WSD-rhs.pkl','w')
+    h = open('XWN-WSD-rel.pkl','w')
+    i = open('XWN-WSD-dict.pkl','w')
+    j = open('XWN-WSD-lab.pkl','w')
+    k = open('XWN-WSD-freq.pkl','w')
+
+    cPickle.dump(posl,f,-1)
+    f.close()
+    cPickle.dump(posr,g,-1)
+    g.close()
+    cPickle.dump(poso,h,-1)
+    h.close()
+    cPickle.dump(dictidx,i,-1)
+    i.close()
+    cPickle.dump(label,j,-1)
+    j.close()
+    cPickle.dump(freqlist,k,-1)
+    k.close()
+
+
+    import scipy.sparse
+    poslS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    posrS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    posoS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    poslL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    posrL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    posoL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    poslLS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    posrLS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+    posoLS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,5000),dtype='float32')
+     
+    idxcurrent = 0
+    for ii in range(5000):
+        i = dat1[order[ii]]
+        k = dat2[order[ii]]
+        lhs,rel,rhs = parseline(i[:-1])
+        lhsr,relr,rhsr = parseline(k[:-1])
+        for j,k in zip(lhs,lhsr):
+            poslL[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
+            poslS[synset2idx[k],idxcurrent]+=1/float(len(lhs))
+            poslLS[lemme2idx[j],idxcurrent] = synset2idx[k]
+        for j,k in zip(rel,relr):
+            posoL[lemme2idx[j],idxcurrent]+=1/float(len(rel))
+            posoS[synset2idx[k],idxcurrent]+=1/float(len(rel))
+            posoLS[lemme2idx[j],idxcurrent] = synset2idx[k]
+        for j,k in zip(rhs,rhsr):
+            posrL[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
+            posrS[synset2idx[k],idxcurrent]+=1/float(len(rhs))
+            posrLS[lemme2idx[j],idxcurrent] = synset2idx[k]
+        idxcurrent+=1
+
+    f = open('XWN-lemme-lhs.pkl','w')
+    g = open('XWN-lemme-rhs.pkl','w')
+    h = open('XWN-lemme-rel.pkl','w')
+    i = open('XWN-synset-lhs.pkl','w')
+    j = open('XWN-synset-rhs.pkl','w')
+    k = open('XWN-synset-rel.pkl','w')
+    l = open('XWN-corres-lhs.pkl','w')
+    m = open('XWN-corres-rhs.pkl','w')
+    n = open('XWN-corres-rel.pkl','w')
+
+    cPickle.dump(poslL,f,-1)
+    f.close()
+    cPickle.dump(posrL,g,-1)
+    g.close()
+    cPickle.dump(posoL,h,-1)
+    h.close()
+    cPickle.dump(poslS,i,-1)
+    i.close()
+    cPickle.dump(posrS,j,-1)
+    j.close()
+    cPickle.dump(posoS,k,-1)
+    k.close()
+    cPickle.dump(poslLS,l,-1)
+    l.close()
+    cPickle.dump(posrLS,m,-1)
+    m.close()
+    cPickle.dump(posoLS,n,-1)
+    n.close()
+
+    ct = 0
+    for ii in xrange(5000,len(dat1)):
+        i = dat1[order[ii]]
+        lhs,rel,rhs = parseline(i[:-1])
+        for j in lhs:
+            if len(lemme2synset[j])>1:
+                ct += len(lemme2synset[j]) - 1 
+        for j in rhs:
+            if len(lemme2synset[j])>1:
+                ct += len(lemme2synset[j]) - 1
+        for j in rel:
+            if len(lemme2synset[j])>1:
+                ct += len(lemme2synset[j]) - 1
+    import scipy.sparse
+
+    posln = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    posrn = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    poson = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
+    print len(dat1),ct
+
+    ct = 0
+    import copy
+    for ii in xrange(5000,len(dat1)):
+        i = dat1[order[ii]]
+        k = dat2[order[ii]]
+        lhs,rel,rhs = parseline(i[:-1])
+        lhsr,relr,rhsr = parseline(k[:-1])
+        for j,l in zip(lhs,lhsr):
+            if len(lemme2synset[j])>1:
+                lltmp1 = copy.deepcopy(lhs)
+                lltmp1.remove(j)
+                lltmp2 = copy.deepcopy(lemme2synset[j])
+                lltmp2.remove(l)
+                for bb in lltmp2:
+                    for vv in lltmp1:
+                        posl[lemme2idx[vv],ct]+=1/float(len(lhs))
+                        posln[lemme2idx[vv],ct]+=1/float(len(lhs))
+                    posl[synset2idx[l],ct]+=1/float(len(lhs))
+                    posln[synset2idx[bb],ct]+=1/float(len(lhs))
+                    for vv in rel:
+                        poso[lemme2idx[vv],ct]+=1/float(len(rel))
+                        poson[lemme2idx[vv],ct]+=1/float(len(rel))
+                    for vv in rhs:
+                        posr[lemme2idx[vv],ct]+=1/float(len(rhs))
+                        posrn[lemme2idx[vv],ct]+=1/float(len(rhs))
+                    ct += 1
+        for j,l in zip(rhs,rhsr):
+            if len(lemme2synset[j])>1:
+                lltmp1 = copy.deepcopy(rhs)
+                lltmp1.remove(j)
+                lltmp2 = copy.deepcopy(lemme2synset[j])
+                lltmp2.remove(l)
+                for bb in lltmp2:
+                    for vv in lltmp1:
+                        posr[lemme2idx[vv],ct]+=1/float(len(rhs))
+                        posrn[lemme2idx[vv],ct]+=1/float(len(rhs))
+                    posr[synset2idx[l],ct]+=1/float(len(rhs))
+                    posrn[synset2idx[bb],ct]+=1/float(len(rhs))
+                    for vv in rel:
+                        poso[lemme2idx[vv],ct]+=1/float(len(rel))
+                        poson[lemme2idx[vv],ct]+=1/float(len(rel))
+                    for vv in lhs:
+                        posl[lemme2idx[vv],ct]+=1/float(len(lhs))
+                        posln[lemme2idx[vv],ct]+=1/float(len(lhs))
+                    ct += 1
+        for j,l in zip(rel,relr):
+            if len(lemme2synset[j])>1:
+                lltmp1 = copy.deepcopy(rel)
+                lltmp1.remove(j)
+                lltmp2 = copy.deepcopy(lemme2synset[j])
+                lltmp2.remove(l)
+                for bb in lltmp2:
+                    for vv in lltmp1:
+                        poso[lemme2idx[vv],ct]+=1/float(len(rel))
+                        poson[lemme2idx[vv],ct]+=1/float(len(rel))
+                    poso[synset2idx[l],ct]+=1/float(len(rel))
+                    poson[synset2idx[bb],ct]+=1/float(len(rel))
+                    for vv in lhs:
+                        posl[lemme2idx[vv],ct]+=1/float(len(lhs))
+                        posln[lemme2idx[vv],ct]+=1/float(len(lhs))
+                    for vv in rhs:
+                        posr[lemme2idx[vv],ct]+=1/float(len(rhs))
+                        posrn[lemme2idx[vv],ct]+=1/float(len(rhs))
+                    ct += 1
+    f = open('XWN-lhs.pkl','w')
+    g = open('XWN-rhs.pkl','w')
+    h = open('XWN-rel.pkl','w')
+    i = open('XWN-lhsn.pkl','w')
+    j = open('XWN-rhsn.pkl','w')
+    k = open('XWN-reln.pkl','w')
+
+    cPickle.dump(posl,f,-1)
+    cPickle.dump(posr,g,-1)
+    cPickle.dump(poso,h,-1)
+    cPickle.dump(posln,i,-1)
+    cPickle.dump(posrn,j,-1)
+    cPickle.dump(poson,k,-1)
 
     f.close()
     g.close()
     h.close()
-
     i.close()
     j.close()
     k.close()
@@ -476,167 +1041,276 @@ if False:
 
 
 
-f = open('/data/lisa/data/NLU/semcor3.0/brown-synsets/Brown-filtered-triplets-unambiguous-lemmas.dat','r')
-g = open('/data/lisa/data/NLU/semcor3.0/brown-synsets/Brown-filtered-triplets-unambiguous-synsets.dat','r')
-
-dat1 = f.readlines()
-f.close()
-dat2 = g.readlines()
-g.close()
-
-missed = 0
-ct = 0
-for i,k in zip(dat1,dat2):
-    lhs,rel,rhs = parseline(i[:-1])
-    lhsr,relr,rhsr = parseline(k[:-1])
-    for j in lhs:
-        if len(lemme2synset[j])>1:
-            ct += (len(lemme2synset[j]))
-        else:
-            missed += 1
-    j = rel[0]
-    if len(lemme2synset[j])>1:
-        ct += len(lemme2synset[j])
-    else:
-        missed += 1
-    for j in rhs:
-        if len(lemme2synset[j])>1:
-            ct += len(lemme2synset[j])
-        else:
-            missed += 1
-print ct,missed
-
-import scipy.sparse
-posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
-posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
-poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,ct),dtype='float32')
-
-idxcurrent = 0
-idxex = 0
-dictidx ={}
-freqlist = []
-label = []
-for i,k in zip(dat1,dat2):
-    lhs,rel,rhs = parseline(i[:-1])
-    lhsr,relr,rhsr = parseline(k[:-1])
-
-    for idxtmp,k in enumerate(lhs):
-        if len(lemme2synset[k])>1:
-            dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),lhsr[idxtmp] in synset2neg.keys())})
-            for l,ff in zip(lemme2synset[k],lemme2freq[k]):
-                for j in list(lhs[:idxtmp])+list(lhs[(idxtmp+1):]):
-                    posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
-                posl[synset2idx[l],idxcurrent]+=1/float(len(lhs))
-                freqlist+=[ff]
-                if l == lhsr[idxtmp]:
-                    label += [1]
-                else:
-                    label += [0]
-                j = rel[0]
-                poso[lemme2idx[j],idxcurrent]+=1
-                for j in rhs:
-                    posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
-                idxcurrent+=1
-            idxex+=1
-    k = rel[0]
-    if len(lemme2synset[k])>1:
-        dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),relr[0] in synset2neg.keys())})
-        for l,ff in zip(lemme2synset[k],lemme2freq[k]):
-            for j in lhs:
-                posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
-            poso[synset2idx[l],idxcurrent]+=1
-            freqlist+=[ff]
-            if l == relr[0]:
-                label += [1]
+if False:
+    from nltk.stem.wordnet import WordNetLemmatizer
+    lmtzr = WordNetLemmatizer()
+    f = open('/data/lisa/data/NLU/ConceptNet/predicates_concise_nonkline.txt','r')
+    dat = f.readlines()
+    g = open('/data/lisa/data/NLU/ConceptNet/predicates_concise_nonkline.txt','r')
+    dat += g.readlines()
+    f.close()
+    g.close()
+    ex = []
+    for i in dat:
+        print len(ex)
+        rel,dum,couple = (i[1:-3]).partition(' ')
+        rel = '_'+rel
+        lcouple = couple[1:-1].split('" "')[:-1]
+        lcouple[0] = lcouple[0].split(' ')
+        left = []
+        booltmp = True
+        for j in range(len(couple[0])):
+            lcouple[0][j] = lmtzr.lemmatize(lcouple[0][j])
+            ctit = 0
+            name = ''
+            if '__' + lcouple[0][j] + '_NN' in lemme2idx.keys():
+                ctit += 1 
+                name ='__' +  lcouple[0][j] + '_NN'
+            if '__' + lcouple[0][j] + '_VB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_VB'
+            if '__' + lcouple[0][j] + '_JJ' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_JJ'
+            if '__' + lcouple[0][j] + '_RB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_RB'
+            if ctit == 1:
+                left += [name]
             else:
-                label += [0]
-            for j in rhs:
-                posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
-            idxcurrent+=1
-        idxex+=1
+                booltmp = False
+        #print 'left',lcouple[0],ctit,left
+        lcouple[1] = lcouple[1].split(' ')
+        right =[]
+        for j in range(len(couple[1])):
+            lcouple[1][j] = lmtzr.lemmatize(lcouple[1][j])
+            ctit = 0
+            name = ''
+            if '__' + lcouple[1][j] + '_NN' in lemme2idx.keys():
+                ctit += 1
+                name ='__' +  lcouple[1][j] + '_NN'
+            if '__' + lcouple[1][j] + '_VB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_VB'
+            if '__' + lcouple[1][j] + '_JJ' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_JJ'
+            if '__' + lcouple[1][j] + '_RB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_RB'
+            if ctit == 1:
+                right += [name]
+            else:
+                booltmp = False
+        #print 'right',lcouple[1],ctit,right
+        if len(left)>=1 and len(right)>=1 and booltmp:
+            ex += [[left,[rel],right]]
+    print ex
+    print numpy.max(lemme2idx.values())+1,len(ex)
+    import scipy.sparse
+    posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    for ct,i in enumerate(ex):
+        for j in i[0]:
+            posl[lemme2idx[j],ct] += 1/float(len(i[0]))
+        for j in i[1]:
+            poso[lemme2idx[j],ct] += 1/float(len(i[1]))
+        for j in i[2]:
+            posr[lemme2idx[j],ct] += 1/float(len(i[2]))
+    
+    f = open('ConceptNet-lhs.pkl','w')
+    g = open('ConceptNet-rhs.pkl','w')
+    h = open('ConceptNet-rel.pkl','w')
 
-    for idxtmp,k in enumerate(rhs):
-        if len(lemme2synset[k])>1:
-            dictidx.update({idxex:(idxcurrent,idxcurrent+len(lemme2synset[k]),rhsr[idxtmp] in synset2neg.keys())})
-            for l,ff in zip(lemme2synset[k],lemme2freq[k]):
-                for j in list(rhs[:idxtmp])+list(rhs[(idxtmp+1):]):
-                    posr[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
-                posr[synset2idx[l],idxcurrent]+=1/float(len(rhs))
-                freqlist+=[ff]
-                if l == rhsr[idxtmp]:
-                    label += [1]
-                else:
-                    label += [0]
-                j = rel[0]
-                poso[lemme2idx[j],idxcurrent]+=1
-                for j in lhs:
-                    posl[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
-                idxcurrent+=1
-            idxex+=1
-
-print idxcurrent,idxex,len(freqlist),len(dictidx),len(label),sum(label)
-f = open('Brown-WSD-lhs.pkl','w')
-g = open('Brown-WSD-rhs.pkl','w')
-h = open('Brown-WSD-rel.pkl','w')
-i = open('Brown-WSD-dict.pkl','w')
-j = open('Brown-WSD-lab.pkl','w')
-k = open('Brown-WSD-freq.pkl','w')
-
-cPickle.dump(posl,f,-1)
-f.close()
-cPickle.dump(posr,g,-1)
-g.close()
-cPickle.dump(poso,h,-1)
-h.close()
-cPickle.dump(dictidx,i,-1)
-i.close()
-cPickle.dump(label,j,-1)
-j.close()
-cPickle.dump(freqlist,k,-1)
-k.close()
-
-
-import scipy.sparse
-poslS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
-posrS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
-posoS = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
-poslL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
-posrL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
-posoL = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(dat1)),dtype='float32')
+    cPickle.dump(posl,f,-1)
+    f.close()
+    cPickle.dump(posr,g,-1)
+    g.close()
+    cPickle.dump(poso,h,-1)
+    h.close()
 
 
-idxcurrent = 0
-for i,k in zip(dat1,dat2):
-    lhs,rel,rhs = parseline(i[:-1])
-    lhsr,relr,rhsr = parseline(k[:-1])
-    for j,k in zip(lhs,lhsr):
-        poslL[lemme2idx[j],idxcurrent]+=1/float(len(lhs))
-        poslS[synset2idx[k],idxcurrent]+=1/float(len(lhs))
-    j = rel[0]
-    k = relr[0]
-    posoL[lemme2idx[j],idxcurrent]+=1
-    posoS[synset2idx[k],idxcurrent]+=1
-    for j in rhs:
-        posrL[lemme2idx[j],idxcurrent]+=1/float(len(rhs))
-        posrS[synset2idx[k],idxcurrent]+=1/float(len(rhs))
-    idxcurrent+=1
 
-f = open('Brown-lemme-lhs.pkl','w')
-g = open('Brown-lemme-rhs.pkl','w')
-h = open('Brown-lemme-rel.pkl','w')
-i = open('Brown-synset-lhs.pkl','w')
-j = open('Brown-synset-rhs.pkl','w')
-k = open('Brown-synset-rel.pkl','w')
 
-cPickle.dump(poslL,f,-1)
-f.close()
-cPickle.dump(posrL,g,-1)
-g.close()
-cPickle.dump(posoL,h,-1)
-h.close()
-cPickle.dump(poslS,i,-1)
-i.close()
-cPickle.dump(posrS,j,-1)
-j.close()
-cPickle.dump(posoS,k,-1)
-k.close()
+if False:
+    from nltk.stem.wordnet import WordNetLemmatizer
+    lmtzr = WordNetLemmatizer()
+    f = open('/data/lisa/data/NLU/ConceptNet/predicates_concise_nonkline.txt','r')
+    dat = f.readlines()
+    g = open('/data/lisa/data/NLU/ConceptNet/predicates_concise_nonkline.txt','r')
+    dat += g.readlines()
+    f.close()
+    g.close()
+    ex = []
+    for i in dat:
+        print len(ex)
+        rel,dum,couple = (i[1:-3]).partition(' ')
+        rel = '_'+rel
+        lcouple = couple[1:-1].split('" "')[:-1]
+        lcouple[0] = lcouple[0].split(' ')
+        left = []
+        booltmp = True
+        for j in range(len(couple[0])):
+            lcouple[0][j] = lmtzr.lemmatize(lcouple[0][j])
+            ctit = 0
+            name = ''
+            if '__' + lcouple[0][j] + '_NN' in lemme2idx.keys():
+                ctit += 1 
+                name ='__' +  lcouple[0][j] + '_NN'
+            if '__' + lcouple[0][j] + '_VB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_VB'
+            if '__' + lcouple[0][j] + '_JJ' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_JJ'
+            if '__' + lcouple[0][j] + '_RB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_RB'
+            if ctit == 1:
+                left += [name]
+            else:
+                booltmp = False
+        #print 'left',lcouple[0],ctit,left
+        lcouple[1] = lcouple[1].split(' ')
+        right =[]
+        for j in range(len(couple[1])):
+            lcouple[1][j] = lmtzr.lemmatize(lcouple[1][j])
+            ctit = 0
+            name = ''
+            if '__' + lcouple[1][j] + '_NN' in lemme2idx.keys():
+                ctit += 1
+                name ='__' +  lcouple[1][j] + '_NN'
+            if '__' + lcouple[1][j] + '_VB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_VB'
+            if '__' + lcouple[1][j] + '_JJ' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_JJ'
+            if '__' + lcouple[1][j] + '_RB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_RB'
+            if ctit == 1:
+                right += [name]
+            else:
+                booltmp = False
+        #print 'right',lcouple[1],ctit,right
+        if len(left)>=1 and len(right)>=1:
+            ex += [[left,[rel],right]]
+    print ex
+    print numpy.max(lemme2idx.values())+1,len(ex)
+    import scipy.sparse
+    posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    for ct,i in enumerate(ex):
+        for j in i[0]:
+            posl[lemme2idx[j],ct] += 1/float(len(i[0]))
+        for j in i[1]:
+            poso[lemme2idx[j],ct] += 1/float(len(i[1]))
+        for j in i[2]:
+            posr[lemme2idx[j],ct] += 1/float(len(i[2]))
+    
+    f = open('ConceptNet2-lhs.pkl','w')
+    g = open('ConceptNet2-rhs.pkl','w')
+    h = open('ConceptNet2-rel.pkl','w')
+
+    cPickle.dump(posl,f,-1)
+    f.close()
+    cPickle.dump(posr,g,-1)
+    g.close()
+    cPickle.dump(poso,h,-1)
+    h.close()
+
+
+
+
+if False:
+    from nltk.stem.wordnet import WordNetLemmatizer
+    lmtzr = WordNetLemmatizer()
+    f = open('/data/lisa/data/NLU/ConceptNet/predicates_concise_nonkline.txt','r')
+    dat = f.readlines()
+    g = open('/data/lisa/data/NLU/ConceptNet/predicates_concise_nonkline.txt','r')
+    dat += g.readlines()
+    f.close()
+    g.close()
+    ex = []
+    for i in dat:
+        print len(ex)
+        rel,dum,couple = (i[1:-3]).partition(' ')
+        rel = '_'+rel
+        lcouple = couple[1:-1].split('" "')[:-1]
+        lcouple[0] = lcouple[0].split(' ')
+        left = []
+        booltmp = True
+        for j in range(len(couple[0])):
+            lcouple[0][j] = lmtzr.lemmatize(lcouple[0][j])
+            ctit = 0
+            name = ''
+            if '__' + lcouple[0][j] + '_RB' in lemme2idx.keys():
+                ctit += 1 
+                name ='__' +  lcouple[0][j] + '_RB'
+            if '__' + lcouple[0][j] + '_JJ' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_JJ'
+            if '__' + lcouple[0][j] + '_VB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_VB'
+            if '__' + lcouple[0][j] + '_NN' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[0][j] + '_NN'
+            if ctit > 0:
+                left += [name]
+            else:
+                booltmp = False
+        #print 'left',lcouple[0],ctit,left
+        lcouple[1] = lcouple[1].split(' ')
+        right =[]
+        for j in range(len(couple[1])):
+            lcouple[1][j] = lmtzr.lemmatize(lcouple[1][j])
+            ctit = 0
+            name = ''
+            if '__' + lcouple[1][j] + '_RB' in lemme2idx.keys():
+                ctit += 1
+                name ='__' +  lcouple[1][j] + '_RB'
+            if '__' + lcouple[1][j] + '_JJ' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_JJ'
+            if '__' + lcouple[1][j] + '_VB' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_VB'
+            if '__' + lcouple[1][j] + '_NN' in lemme2idx.keys():
+                ctit += 1
+                name = '__' + lcouple[1][j] + '_NN'
+            if ctit > 0:
+                right += [name]
+            else:
+                booltmp = False
+        #print 'right',lcouple[1],ctit,right
+        if len(left)>=1 and len(right)>=1:
+            ex += [[left,[rel],right]]
+    print ex
+    print numpy.max(lemme2idx.values())+1,len(ex)
+    import scipy.sparse
+    posl = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    posr = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    poso = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,len(ex)),dtype='float32')
+    for ct,i in enumerate(ex):
+        for j in i[0]:
+            posl[lemme2idx[j],ct] += 1/float(len(i[0]))
+        for j in i[1]:
+            poso[lemme2idx[j],ct] += 1/float(len(i[1]))
+        for j in i[2]:
+            posr[lemme2idx[j],ct] += 1/float(len(i[2]))
+    
+    f = open('ConceptNet3-lhs.pkl','w')
+    g = open('ConceptNet3-rhs.pkl','w')
+    h = open('ConceptNet3-rel.pkl','w')
+
+    cPickle.dump(posl,f,-1)
+    f.close()
+    cPickle.dump(posr,g,-1)
+    g.close()
+    cPickle.dump(poso,h,-1)
+    h.close()
+

@@ -5,7 +5,8 @@ import sys
 from model import *
 
 synset2idx = cPickle.load(open('synset2idx.pkl','r'))
-loadmodel = '/mnt/scratch/bengio/glorotxa/data/exp/glorotxa_db/wakabstfinal/98/model.pkl'
+loadmodel = '/mnt/scratch/bengio/glorotxa/data/exp/glorotxa_db/wakabstfinal4/76/model.pkl'
+
 
 f = open(loadmodel)
 embeddings = cPickle.load(f)
@@ -20,36 +21,27 @@ srl = SimilarityFunctionrightl(simfn,embeddings,leftop,rightop,numpy.max(synset2
 sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1)
 sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1)
 
-
-posl = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-synset-lhs.pkl')),dtype='float32')
-posr = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-synset-rhs.pkl')),dtype='float32')
-poso = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-synset-rel.pkl')),dtype='float32')
-
+posl = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-synset-lhs.pkl')),dtype='float32')
+posr = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-synset-rhs.pkl')),dtype='float32')
+poso = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-synset-rel.pkl')),dtype='float32')
 
 nbtest = 100
 print calctestscore(sll,srl,sol,posl[:,:nbtest],posr[:,:nbtest],poso[:,:nbtest])
-
 
 srl = SimilarityFunctionrightl(simfn,embeddings,leftop,rightop)
 sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop)
 sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop)
 
-
-posl = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-synset-lhs.pkl')),dtype='float32')
-posr = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-synset-rhs.pkl')),dtype='float32')
-poso = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-synset-rel.pkl')),dtype='float32')
-
+posl = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-synset-lhs.pkl')),dtype='float32')
+posr = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-synset-rhs.pkl')),dtype='float32')
+poso = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-synset-rel.pkl')),dtype='float32')
 
 nbtest = 100
 print calctestscore(sll,srl,sol,posl[:,:nbtest],posr[:,:nbtest],poso[:,:nbtest])
 
-
-
-posl = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-lemme-lhs.pkl')),dtype='float32')
-posr = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-lemme-rhs.pkl')),dtype='float32')
-poso = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST3/Brown-lemme-rel.pkl')),dtype='float32')
-
+posl = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-lemme-lhs.pkl')),dtype='float32')
+posr = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-lemme-rhs.pkl')),dtype='float32')
+poso = scipy.sparse.csr_matrix(cPickle.load(open('/mnt/scratch/bengio/glorotxa/data/exp/WakaBST4/Brown-lemme-rel.pkl')),dtype='float32')
 
 nbtest = 100
 print calctestscore(sll,srl,sol,posl[:,:nbtest],posr[:,:nbtest],poso[:,:nbtest])
-
