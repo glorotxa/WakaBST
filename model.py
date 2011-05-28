@@ -202,41 +202,74 @@ def SimilarityFunctionl(fnsim,embeddings,leftop,rightop):
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright,idxrel],[simi])
 
-def SimilarityFunctionrightl(fnsim,embeddings,leftop,rightop,subtensorspec = None):
+def SimilarityFunctionrightl(fnsim,embeddings,leftop,rightop,subtensorspec = None, adding = False):
     idxrel = theano.sparse.csr_matrix('idxrel')
     idxleft = theano.sparse.csr_matrix('idxleft')
     lhs = (theano.sparse.dot(embeddings.E,idxleft).T).reshape((1,embeddings.D))
-    if subtensorspec == None:
-        rhs = embeddings.E.T
+    if not adding:
+        if subtensorspec == None:
+            rhs = embeddings.E.T
+        else:
+            rhs = embeddings.E[:,:subtensorspec].T
     else:
-        rhs = embeddings.E[:,:subtensorspec].T
+        idxadd = theano.sparse.csr_matrix('idxadd')
+        sc = T.scalar('sc')
+        if subtensorspec == None:
+            rhs = embeddings.E.T * sc + (theano.sparse.dot(embeddings.E,idxadd).T).reshape((1,embeddings.D))
+        else:
+            rhs = embeddings.E[:,:subtensorspec].T * sc + (theano.sparse.dot(embeddings.E,idxadd).T).reshape((1,embeddings.D))
     rel = (theano.sparse.dot(embeddings.E,idxrel).T).reshape((1,embeddings.D))
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
-    return theano.function([idxleft,idxrel],[simi])
+    if not adding:
+        return theano.function([idxleft,idxrel],[simi])
+    else:
+        return theano.function([idxleft,idxrel,idxadd,sc],[simi])
 
-def SimilarityFunctionleftl(fnsim,embeddings,leftop,rightop,subtensorspec = None):
+def SimilarityFunctionleftl(fnsim,embeddings,leftop,rightop,subtensorspec = None, adding = False):
     idxrel = theano.sparse.csr_matrix('idxrel')
     idxright = theano.sparse.csr_matrix('idxright')
     rhs = (theano.sparse.dot(embeddings.E,idxright).T).reshape((1,embeddings.D))
-    if subtensorspec == None:
-        lhs = embeddings.E.T
+    if not adding:
+        if subtensorspec == None:
+            lhs = embeddings.E.T
+        else:
+            lhs = embeddings.E[:,:subtensorspec].T
     else:
-        lhs = embeddings.E[:,:subtensorspec].T
+        idxadd = theano.sparse.csr_matrix('idxadd')
+        sc = T.scalar('sc')
+        if subtensorspec == None:
+            lhs = embeddings.E.T * sc + (theano.sparse.dot(embeddings.E,idxadd).T).reshape((1,embeddings.D))
+        else:
+            lhs = embeddings.E[:,:subtensorspec].T * sc + (theano.sparse.dot(embeddings.E,idxadd).T).reshape((1,embeddings.D))
     rel = (theano.sparse.dot(embeddings.E,idxrel).T).reshape((1,embeddings.D))
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
-    return theano.function([idxright,idxrel],[simi])
+    if not adding:
+        return theano.function([idxright,idxrel],[simi])
+    else:
+        return theano.function([idxright,idxrel,idxadd,sc],[simi])
 
-def SimilarityFunctionrell(fnsim,embeddings,leftop,rightop,subtensorspec = None):
+def SimilarityFunctionrell(fnsim,embeddings,leftop,rightop,subtensorspec = None, adding = False):
     idxright = theano.sparse.csr_matrix('idxright')
     idxleft = theano.sparse.csr_matrix('idxleft')
     lhs = (theano.sparse.dot(embeddings.E,idxleft).T).reshape((1,embeddings.D))
-    if subtensorspec == None:
-        rel = embeddings.E.T
+    if not adding:
+        if subtensorspec == None:
+            rel = embeddings.E.T
+        else:
+            rel = embeddings.E[:,:subtensorspec].T
     else:
-        rel = embeddings.E[:,:subtensorspec].T
+        idxadd = theano.sparse.csr_matrix('idxadd')
+        sc = T.scalar('sc')
+        if subtensorspec == None:
+            rel = embeddings.E.T * sc + (theano.sparse.dot(embeddings.E,idxadd).T).reshape((1,embeddings.D))
+        else:
+            rel = embeddings.E[:,:subtensorspec].T * sc + (theano.sparse.dot(embeddings.E,idxadd).T).reshape((1,embeddings.D))
     rhs = (theano.sparse.dot(embeddings.E,idxright).T).reshape((1,embeddings.D))
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
-    return theano.function([idxleft,idxright],[simi])
+    if not adding:
+        return theano.function([idxleft,idxright],[simi])
+    else:
+        return theano.function([idxleft,idxright,idxadd,sc],[simi])
 
 
 def SimilarityFunction(fnsim,embeddings,leftop,rightop):
@@ -464,4 +497,63 @@ def calctestscore(sl,sr,so,posl,posr,poso):
         ranko = numpy.argsort((so(posl[:,i],posr[:,i])[0]).flatten())
         for o in poso[:,i].nonzero()[0]:
             erro += [numpy.argsort(ranko[::-1]).flatten()[0]]
+    return numpy.mean(errl+errr+erro),numpy.std(errl+errr+erro),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr),numpy.mean(erro),numpy.std(erro)
+
+import copy
+
+def calctestscore2(sl,sr,so,posl,posr,poso):
+    errl = []
+    errr = []
+    erro = []
+    for i in range(posl.shape[1]):
+        lnz = posl[:,i].nonzero()[0]
+        for j in lnz:
+            val = posl[j,i]
+            tmpadd = copy.deepcopy(posl[:,i])
+            tmpadd[j,0] = 0.0
+            rankl = numpy.argsort((sl(posr[:,i],poso[:,i],tmpadd,val)[0]).flatten())
+            errl += [numpy.argsort(rankl[::-1]).flatten()[j]]
+        rnz = posr[:,i].nonzero()[0]
+        for j in rnz:
+            val = posr[j,i]
+            tmpadd = copy.deepcopy(posr[:,i])
+            tmpadd[j,0] = 0.0
+            rankr = numpy.argsort((sr(posl[:,i],poso[:,i],tmpadd,val)[0]).flatten())
+            errr += [numpy.argsort(rankr[::-1]).flatten()[j]]
+        onz = poso[:,i].nonzero()[0]
+        for j in onz:
+            val = poso[j,i]
+            tmpadd = copy.deepcopy(poso[:,i])
+            tmpadd[j,0] = 0.0
+            ranko = numpy.argsort((so(posl[:,i],posr[:,i],tmpadd,val)[0]).flatten())
+            erro += [numpy.argsort(ranko[::-1]).flatten()[j]]
+    return numpy.mean(errl+errr+erro),numpy.std(errl+errr+erro),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr),numpy.mean(erro),numpy.std(erro)
+
+
+def calctestscore3(sl,sr,so,posl,posr,poso,poslc,posrc,posoc):
+    errl = []
+    errr = []
+    erro = []
+    for i in range(posl.shape[1]):
+        lnz = posl[:,i].nonzero()[0]
+        for j in lnz:
+            val = posl[j,i]
+            tmpadd = copy.deepcopy(posl[:,i])
+            tmpadd[j,0] = 0.0
+            rankl = numpy.argsort((sl(posr[:,i],poso[:,i],tmpadd,val)[0]).flatten())
+            errl += [numpy.argsort(rankl[::-1]).flatten()[poslc[j,i]]]
+        rnz = posr[:,i].nonzero()[0]
+        for j in rnz:
+            val = posr[j,i]
+            tmpadd = copy.deepcopy(posr[:,i])
+            tmpadd[j,0] = 0.0
+            rankr = numpy.argsort((sr(posl[:,i],poso[:,i],tmpadd,val)[0]).flatten())
+            errr += [numpy.argsort(rankr[::-1]).flatten()[posrc[j,i]]]
+        onz = poso[:,i].nonzero()[0]
+        for j in onz:
+            val = poso[j,i]
+            tmpadd = copy.deepcopy(poso[:,i])
+            tmpadd[j,0] = 0.0
+            ranko = numpy.argsort((so(posl[:,i],posr[:,i],tmpadd,val)[0]).flatten())
+            erro += [numpy.argsort(ranko[::-1]).flatten()[posoc[j,i]]]
     return numpy.mean(errl+errr+erro),numpy.std(errl+errr+erro),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr),numpy.mean(erro),numpy.std(erro)
