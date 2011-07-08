@@ -4,8 +4,14 @@ import os
 import sys
 from model import *
 
+
+# create or use a folder containing the results with the name:
 name = sys.argv[1]
+
+# take the job id of the experiment folder
 id = int(sys.argv[2])
+
+# do the evaluation given by the number (0 for all)
 evaln = int(sys.argv[3])
 
 
@@ -14,8 +20,6 @@ def normafunc(x):
 
 def softmaxfunc(x):
     return numpy.exp(x-numpy.max(x))/sum(numpy.exp(x-numpy.max(x)))
-
-
 
 print name,id,evaln
 
@@ -61,46 +65,46 @@ if evaln == 1 or evaln == 0:
     cPickle.dump(rrX,f,-1)
 
 #----------------------------------------------------------------------------------------------------
-if evaln == 10 or evaln == 0:
-    srl = SimilarityFunctionrightl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
-    sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
-    sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
-
-    posl = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-lhs.pkl')),dtype='float32')
-    posr = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rhs.pkl')),dtype='float32')
-    poso = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rel.pkl')),dtype='float32')
-    poslc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-lhs.pkl')),dtype='float32')
-    posrc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-rhs.pkl')),dtype='float32')
-    posoc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-rel.pkl')),dtype='float32')
-
-    nbtest = 5000
-
-    llX , relX , rrX= calctestscore4(sll,srl,sol,posl[:,:nbtest],posr[:,:nbtest],poso[:,:nbtest],poslc[:,:nbtest],posrc[:,:nbtest],posoc[:,:nbtest])
-    f = open(name +'/' + name + '_XWNmodrank.pkl','w')
-    cPickle.dump(llX,f,-1)
-    cPickle.dump(relX,f,-1)
-    cPickle.dump(rrX,f,-1)
+#if evaln == 10 or evaln == 0:
+#    srl = SimilarityFunctionrightl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
+#    sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
+#    sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
+#
+#    posl = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-lhs.pkl')),dtype='float32')
+#    posr = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rhs.pkl')),dtype='float32')
+#    poso = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rel.pkl')),dtype='float32')
+#    poslc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-lhs.pkl')),dtype='float32')
+#    posrc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-rhs.pkl')),dtype='float32')
+#    posoc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-rel.pkl')),dtype='float32')
+#
+#    nbtest = 5000
+#
+#    llX , relX , rrX= calctestscore4(sll,srl,sol,posl[:,:nbtest],posr[:,:nbtest],poso[:,:nbtest],poslc[:,:nbtest],posrc[:,:nbtest],posoc[:,:nbtest])
+#    f = open(name +'/' + name + '_XWNmodrank.pkl','w')
+#    cPickle.dump(llX,f,-1)
+#    cPickle.dump(relX,f,-1)
+#    cPickle.dump(rrX,f,-1)
 
 #----------------------------------------------------------------------------------------------------
-if evaln == 11 or evaln == 0:
-    srl = SimilarityFunctionrightl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
-    sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
-    sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
-
-    posl = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-lhs.pkl')),dtype='float32')
-    posr = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rhs.pkl')),dtype='float32')
-    poso = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rel.pkl')),dtype='float32')
-    poslc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-lhs.pkl')),dtype='float32')
-    posrc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-rhs.pkl')),dtype='float32')
-    posoc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-rel.pkl')),dtype='float32')
-
-    nbtest = 5000
-
-    llX , relX , rrX= calctestscore4(sll,srl,sol,posl[:,:nbtest],posr[:,:nbtest],poso[:,:nbtest],poslc[:,:nbtest],posrc[:,:nbtest],posoc[:,:nbtest])
-    f = open(name +'/' + name + '_XWNnmodrank.pkl','w')
-    cPickle.dump(llX,f,-1)
-    cPickle.dump(relX,f,-1)
-    cPickle.dump(rrX,f,-1)
+#if evaln == 11 or evaln == 0:
+#    srl = SimilarityFunctionrightl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
+#    sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
+#    sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
+#
+#    posl = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-lhs.pkl')),dtype='float32')
+#    posr = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rhs.pkl')),dtype='float32')
+#    poso = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rel.pkl')),dtype='float32')
+#    poslc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-lhs.pkl')),dtype='float32')
+#    posrc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-rhs.pkl')),dtype='float32')
+#    posoc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-rel.pkl')),dtype='float32')
+#
+#    nbtest = 5000
+#
+#    llX , relX , rrX= calctestscore4(sll,srl,sol,posl[:,:nbtest],posr[:,:nbtest],poso[:,:nbtest],poslc[:,:nbtest],posrc[:,:nbtest],posoc[:,:nbtest])
+#    f = open(name +'/' + name + '_XWNnmodrank.pkl','w')
+#    cPickle.dump(llX,f,-1)
+#    cPickle.dump(relX,f,-1)
+#    cPickle.dump(rrX,f,-1)
 
 
 #----------------------------------------------------------------------------------------------------
