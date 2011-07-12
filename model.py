@@ -21,6 +21,7 @@ def margincost(pos,neg,marge=1.0):
     return T.sum(out * (out>0)),out>0
 
 def validcost(pos,neg):
+    # Corresponds to the error without marge.
     out = neg - pos
     return T.sum(out * (out>0)),out>0, T.sum(out * (out<0))
 
@@ -87,7 +88,7 @@ class Layercomb(object):
             self.b = theano.shared(value = binit, name = 'b')
         self.params = self.layer1.params + self.layer2.params + [self.b]
     def __call__(self,x,y):
-        return self.act(T.dot(x, self.layer1.W) + T.dot(y, self.layer2.W) + self.b)
+        return self.act(self.layer1(x) + self.layer2(y) + self.b)
     def save(self,path):
         f = open(path,'w')
         cPickle.dump(self,f,-1)
@@ -111,7 +112,7 @@ class MLP(object):
             self.b = theano.shared(value = b3init, name = 'b')
         self.params = self.layer12.params + self.layer3.params + [self.b]
     def __call__(self,x,y):
-        return self.layer3(self.layer12(x,y))
+        return self.layer3(self.layer12(x,y)) + self.b
     def save(self,path):
         f = open(path,'w')
         cPickle.dump(self,f,-1)
@@ -192,7 +193,9 @@ class Embedd(object):
 
 # ---------------------------------------
 
+
 def SimilarityFunctionl(fnsim,embeddings,leftop,rightop):
+    # Creation of scoring function on sparse matrices lhs,rel,rhs.
     idxrel = theano.sparse.csr_matrix('idxrel')
     idxright = theano.sparse.csr_matrix('idxright')
     idxleft = theano.sparse.csr_matrix('idxleft')
@@ -202,7 +205,16 @@ def SimilarityFunctionl(fnsim,embeddings,leftop,rightop):
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright,idxrel],[simi])
 
+
+# Creation of ccoring function with respect to the complete list of embeddings (or a subtensor of it defined by subtensorspec)
+# if adding = True the scoring function has 2 more arguments: idxadd which contains the indexes to add, and sc the scaling:
+# example: you want to ask ( [__us_NN_1,__army_NN_1] , [__attack_VB_1], [???,__village_NN_1] ) idxadd represents __village_NN_1
+# and sc represent the values of ??? (here 1/2) so that the sum of each member is 1 (to do a mean pool).
+
+# Ask for the right member
 def SimilarityFunctionrightl(fnsim,embeddings,leftop,rightop,subtensorspec = None, adding = False):
+    # Scoring fuynction with respect to the complete list of embeddings (or a subtensor of it defined by subtensorspec)
+    # if adding = True the scoring function has 2 more arguments
     idxrel = theano.sparse.csr_matrix('idxrel')
     idxleft = theano.sparse.csr_matrix('idxleft')
     lhs = (theano.sparse.dot(embeddings.E,idxleft).T).reshape((1,embeddings.D))
@@ -225,6 +237,7 @@ def SimilarityFunctionrightl(fnsim,embeddings,leftop,rightop,subtensorspec = Non
     else:
         return theano.function([idxleft,idxrel,idxadd,sc],[simi])
 
+# Ask for the left member
 def SimilarityFunctionleftl(fnsim,embeddings,leftop,rightop,subtensorspec = None, adding = False):
     idxrel = theano.sparse.csr_matrix('idxrel')
     idxright = theano.sparse.csr_matrix('idxright')
@@ -248,6 +261,7 @@ def SimilarityFunctionleftl(fnsim,embeddings,leftop,rightop,subtensorspec = None
     else:
         return theano.function([idxright,idxrel,idxadd,sc],[simi])
 
+# Ask for the relation member
 def SimilarityFunctionrell(fnsim,embeddings,leftop,rightop,subtensorspec = None, adding = False):
     idxright = theano.sparse.csr_matrix('idxright')
     idxleft = theano.sparse.csr_matrix('idxleft')
@@ -272,6 +286,7 @@ def SimilarityFunctionrell(fnsim,embeddings,leftop,rightop,subtensorspec = None,
         return theano.function([idxleft,idxright,idxadd,sc],[simi])
 
 
+# Creation of scoring function on indexes (not on sparse matrices) 
 def SimilarityFunction(fnsim,embeddings,leftop,rightop):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxright')
@@ -282,6 +297,8 @@ def SimilarityFunction(fnsim,embeddings,leftop,rightop):
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxright,idxrel],[simi])
 
+
+# Ask for the right member
 def SimilarityFunctionright(fnsim,embeddings,leftop,rightop,subtensorspec = None):
     idxrel = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
@@ -294,6 +311,8 @@ def SimilarityFunctionright(fnsim,embeddings,leftop,rightop,subtensorspec = None
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxleft,idxrel],[simi])
 
+
+# Ask for the left member
 def SimilarityFunctionleft(fnsim,embeddings,leftop,rightop,subtensorspec = None):
     idxrel = T.iscalar('idxrel')
     idxright = T.iscalar('idxright')
@@ -306,6 +325,7 @@ def SimilarityFunctionleft(fnsim,embeddings,leftop,rightop,subtensorspec = None)
     simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
     return theano.function([idxright,idxrel],[simi])
 
+# Ask for the relation member
 def SimilarityFunctionrel(fnsim,embeddings,leftop,rightop,subtensorspec = None):
     idxright = T.iscalar('idxrel')
     idxleft = T.iscalar('idxleft')
@@ -320,8 +340,11 @@ def SimilarityFunctionrel(fnsim,embeddings,leftop,rightop,subtensorspec = None):
     return theano.function([idxleft,idxright],[simi])
 
 
-
-
+# get the N most probable words given by a scoring function simfn with part1 and part2 its 2 input members (in a list of synset or lemme or concept).
+# typ = 1 : ??? part2 part1 (simfn built with SimilarityFunctionleftl)
+# typ = 2 : part1 part2 ??? (simfn built with SimilarityFunctionrightl)
+# typ = 3 : part1 ??? part2 (simfn built with SimilarityFunctionrell)
+# emb = True : distance(part1,???) (you have to build a model with Id() layers with a L2 scoring function, then simfn built from SimilarityFunctionrightl)
 def getnclosest(N, idx2lemme, lemme2idx, idx2synset, synset2idx, synset2def, synset2concept, concept2synset, simfn, part1, part2, typ = 1, emb = False):
     idx1 = []
     str1 = []
@@ -387,6 +410,17 @@ def getnclosest(N, idx2lemme, lemme2idx, idx2synset, synset2idx, synset2def, syn
 import theano.sparse
 import scipy.sparse
 
+# The training function creation:
+# relb = true, negative sample for the realtion member.
+
+# lrparams = learning rate for all the parameters of the model.
+# lrembeddings = learning rate for the embeddings.
+# inpposl = sparse matrix of the lhs.
+# inposr = sparse matrix of the rhs
+# inposo = sparse matrix of the relation
+# inpposln = sparse matrix of the negatif samples for the lhs
+# inpposrn = sparse matrix of the negatif samples for the rhs
+# inpposon = sparse matrix of the negatif samples for the relation
 def TrainFunction(fnsim,embeddings, leftop, rightop, marge = 1.0, relb = True):
     # inputs 
     inpposr = theano.sparse.csr_matrix()
@@ -433,6 +467,33 @@ def TrainFunction(fnsim,embeddings, leftop, rightop, marge = 1.0, relb = True):
     updates.update({embeddings.E:newE})
     return theano.function([lrparams,lrembeddings,inpposl, inpposr, inpposo, inpposln, inpposrn,inpposon], [cost,costl,costr,costo,T.sum(out),T.sum(outl),T.sum(outr),T.sum(outo),lhs,rhs,rel,simi,siminl,siminr,simino],updates=updates)
 
+
+# Function returning the binary vector representing: cost>0
+def ForwardFunction(fnsim,embeddings, leftop, rightop, marge = 1.0):
+    # inputs
+    inpposr = theano.sparse.csr_matrix()
+    inpposl = theano.sparse.csr_matrix()
+    inpposo = theano.sparse.csr_matrix()
+    inpposln = theano.sparse.csr_matrix()
+    inpposrn = theano.sparse.csr_matrix()
+    inpposon = theano.sparse.csr_matrix()
+    # graph
+    lhs = theano.sparse.dot(embeddings.E,inpposl).T
+    rhs = theano.sparse.dot(embeddings.E,inpposr).T
+    rel = theano.sparse.dot(embeddings.E,inpposo).T
+    lhsn = theano.sparse.dot(embeddings.E,inpposln).T
+    rhsn = theano.sparse.dot(embeddings.E,inpposrn).T
+    reln = theano.sparse.dot(embeddings.E,inpposon).T
+    simi = fnsim(leftop(lhs,rel),rightop(rhs,rel))
+    siminl = fnsim(leftop(lhsn,rel),rightop(rhs,rel))
+    siminr = fnsim(leftop(lhs,rel),rightop(rhsn,rel))
+    simino = fnsim(leftop(lhs,reln),rightop(rhs,reln))
+    costl,outl = margincost(simi,siminl,marge)
+    costr,outr = margincost(simi,siminr,marge)
+    costo,outo = margincost(simi,simino,marge)
+    return theano.function([inpposl, inpposr, inpposo, inpposln, inpposrn,inpposon], [outl,outr,outo])
+
+# Function returning the score over lhs,rhs and rel sparse matrices
 def BatchSimilarityFunction(fnsim,embeddings, leftop, rightop):
     # inputs
     inpposr = theano.sparse.csr_matrix()
@@ -446,6 +507,7 @@ def BatchSimilarityFunction(fnsim,embeddings, leftop, rightop):
     return theano.function([inpposl, inpposr, inpposo], [simi])
 
 
+# Function doing the forward on a batch and returning all information (without updating):
 def BatchValidFunction(fnsim,embeddings, leftop, rightop):
     # inputs
     inpposr = theano.sparse.csr_matrix()
@@ -473,7 +535,10 @@ def BatchValidFunction(fnsim,embeddings, leftop, rightop):
     return theano.function([inpposl, inpposr, inpposo, inpposln, inpposrn,inpposon], [cost,costl,costr,costo,T.sum(out),T.sum(outl),T.sum(outr),T.sum(outo),margel,marger,margeo,lhs,rhs,rel,simi,siminl,siminr,simino])
 
 
-
+# Compute the mean rank of the lhs and rhs, over a list of lhs, rhs and rel indexes.
+# Only works when there is one word per member (WordNet)
+# sl build with SimilarityFunctionleft
+# sr build with SimilarityFunctionright
 def calctestval(sl,sr,idxtl,idxtr,idxto):
     errl = []
     errr = []
@@ -482,7 +547,20 @@ def calctestval(sl,sr,idxtl,idxtr,idxto):
         errr += [numpy.argsort(numpy.argsort((sr(l,o)[0]).flatten())[::-1]).flatten()[r]]
     return numpy.mean(errl+errr),numpy.std(errl+errr),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr)
 
+# The same but returns the ranking lists instead of their mean and std.
+def calctestval2(sl,sr,idxtl,idxtr,idxto):
+    errl = []
+    errr = []
+    for l,o,r in zip(idxtl,idxto,idxtr):
+        errl += [numpy.argsort(numpy.argsort((sl(r,o)[0]).flatten())[::-1]).flatten()[l]]
+        errr += [numpy.argsort(numpy.argsort((sr(l,o)[0]).flatten())[::-1]).flatten()[r]]
+    return errl,errr
 
+# Similar but works with sparse index matrices (posl,posr,poso) = (lhs,rhs,rel)
+# replace the whole member by one word.
+# sl build with SimilarityFunctionleftl
+# sr build with SimilarityFunctionrightl
+# so build with SimilarityFunctionrell
 def calctestscore(sl,sr,so,posl,posr,poso):
     errl = []
     errr = []
@@ -501,6 +579,12 @@ def calctestscore(sl,sr,so,posl,posr,poso):
 
 import copy
 
+
+# Similar but works with sparse index matrices (posl,posr,poso) = (lhs,rhs,rel)
+# AND replace only ONE word per member (does ALL combinations)
+# sl build with SimilarityFunctionleftl (with the adding argument = True) 
+# sr build with SimilarityFunctionrightl (with the adding argument = True)
+# so build with SimilarityFunctionrell (with the adding argument = True)
 def calctestscore2(sl,sr,so,posl,posr,poso):
     errl = []
     errr = []
@@ -529,7 +613,14 @@ def calctestscore2(sl,sr,so,posl,posr,poso):
             erro += [numpy.argsort(ranko[::-1]).flatten()[j]]
     return numpy.mean(errl+errr+erro),numpy.std(errl+errr+erro),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr),numpy.mean(erro),numpy.std(erro)
 
-
+# The same :
+# Similar but works with sparse index matrices (posl,posr,poso) = (lhs,rhs,rel)
+# AND replace only ONE word per member (does ALL combinations)
+# sl build with SimilarityFunctionleftl (with the adding argument = True)
+# sr build with SimilarityFunctionrightl (with the adding argument = True)
+# so build with SimilarityFunctionrell (with the adding argument = True)
+# But compares with the index correspondance sparse matrices: (poslc,posrc,posoc)
+# (you give lemmas in input and find the ranking of synsets).
 def calctestscore3(sl,sr,so,posl,posr,poso,poslc,posrc,posoc):
     errl = []
     errr = []
@@ -557,3 +648,33 @@ def calctestscore3(sl,sr,so,posl,posr,poso,poslc,posrc,posoc):
             ranko = numpy.argsort((so(posl[:,i],posr[:,i],tmpadd,val)[0]).flatten())
             erro += [numpy.argsort(ranko[::-1]).flatten()[posoc[j,i]]]
     return numpy.mean(errl+errr+erro),numpy.std(errl+errr+erro),numpy.mean(errl),numpy.std(errl),numpy.mean(errr),numpy.std(errr),numpy.mean(erro),numpy.std(erro)
+
+
+# The same but return ranking lists instead of their mean and std.
+def calctestscore4(sl,sr,so,posl,posr,poso,poslc,posrc,posoc):
+    errl = []
+    errr = []
+    erro = []
+    for i in range(posl.shape[1]):
+        lnz = posl[:,i].nonzero()[0]
+        for j in lnz:
+            val = posl[j,i]
+            tmpadd = copy.deepcopy(posl[:,i])
+            tmpadd[j,0] = 0.0
+            rankl = numpy.argsort((sl(posr[:,i],poso[:,i],tmpadd,val)[0]).flatten())
+            errl += [numpy.argsort(rankl[::-1]).flatten()[poslc[j,i]]]
+        rnz = posr[:,i].nonzero()[0]
+        for j in rnz:
+            val = posr[j,i]
+            tmpadd = copy.deepcopy(posr[:,i])
+            tmpadd[j,0] = 0.0
+            rankr = numpy.argsort((sr(posl[:,i],poso[:,i],tmpadd,val)[0]).flatten())
+            errr += [numpy.argsort(rankr[::-1]).flatten()[posrc[j,i]]]
+        onz = poso[:,i].nonzero()[0]
+        for j in onz:
+            val = poso[j,i]
+            tmpadd = copy.deepcopy(poso[:,i])
+            tmpadd[j,0] = 0.0
+            ranko = numpy.argsort((so(posl[:,i],posr[:,i],tmpadd,val)[0]).flatten())
+            erro += [numpy.argsort(ranko[::-1]).flatten()[posoc[j,i]]]
+    return errl,errr,erro
