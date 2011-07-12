@@ -12,13 +12,13 @@ nbatches = 10 # number of batches to create out of the whole training size
 lrparam = 1 # learning rate of the model parameters
 lremb = 0.01 # learning rate of the embeddings
 nbtest = 100 # perform ranking over this number of test samples
-testall = 1 # perform evaluation at each time we made this number of epochs.
+testall = 10 # perform evaluation at each time we made this number of epochs.
 savepath = 'simpleexpesave' # name of the folder to create to save the model and the ranking lists
 simfnstr = 'dot' # the similarity scoring function
 listconcept = [['__brain_NN_1'], ['__france_NN_1'], ['__auto_NN_1']] # The rhs and lhs to use for the creation of the ranking list
 listrel = [['_has_part'],['_part_of']] # the relations to use to create the ranking lists
 nbrank = 30 # How many word we look when we create ranking lists
-warp = 10 # maximum number of resampling time for the warp update (if False no warp)
+warp = False # maximum number of resampling time for the warp update (if False no warp)
 loadmodel = False #path to model.pkl to load
 datpath = '/data/lisa/exp/glorotxa/WakaBST4/' #data path to load from
 

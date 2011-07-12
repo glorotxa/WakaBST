@@ -1,0 +1,39 @@
+** Currently, you need the following version of theano to use the sparse implementation:
+https://bitbucket.org/ynd/theano/overview
+
+#-----------------------------------------------------------------------------------------
+SCRIPTS DESCRIPTIONS:
+#-----------------------------------------------------------------------------------------
+** model.py contains all the tools to build, train and evaluate a model.
+
+** datatools.py shows how to build the necessary data file (sparse matrices, dictionnaries), from 
+the nlu/ data.
+
+** simpleexpe.py is a simplified version of the training script (only using WordNet3.0 data),
+you can change directly the hard-coded parameters and run the code in the WakaBST folder using
+one of the two following commands: 
+
+THEANO_FLAGS=floatX=float32,device=gpu python simpleexpe.py 
+(for gpu use)
+or
+THEANO_FLAGS=floatX=float32,device=cpu python simpleexpe.py
+(for cpu use)
+
+
+** utils.py is a simple script to load a model and create ranking lists.
+
+THEANO_FLAGS=floatX=float32,device=[cpu/gpu] python utils.py
+
+
+** evaluation.py shows how to do the different evaluations procedure (mean rank, WSD, ...etc)
+
+THEANO_FLAGS=floatX=float32,device=[cpu/gpu] python evaluation.py resultfolder idjob evalnumber
+
+** expeWAKA.py (sorry for the headache...) is the training script over all the different training sets
+using the jobman interface.
+
+#------------------------------------------------------------------------------------------
+Contact: glorotxa@iro.umontreal.ca
+
+
+

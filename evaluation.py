@@ -28,9 +28,12 @@ try:
 except:
     pass
 
-synset2idx = cPickle.load(open('synset2idx.pkl','r'))
-lemme2idx = cPickle.load(open('lemme2idx.pkl','r'))
+datpath ='/data/lisa/exp/glorotxa/WakaBST4/'
+
+synset2idx = cPickle.load(open(datpath+'synset2idx.pkl','r'))
+lemme2idx = cPickle.load(open(datpath+'lemme2idx.pkl','r'))
 loadmodel = '/data/lisa/exp/glorotxa/WakaBST4/evaluationsave/%s/model.pkl'%id
+
 
 f = open(loadmodel)
 embeddings = cPickle.load(f)
@@ -49,12 +52,12 @@ if evaln == 1 or evaln == 0:
     sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
     sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
 
-    posl = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-lhs.pkl')),dtype='float32')
-    posr = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rhs.pkl')),dtype='float32')
-    poso = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rel.pkl')),dtype='float32')
-    poslc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-corres-lhs.pkl')),dtype='float32')
-    posrc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-corres-rhs.pkl')),dtype='float32')
-    posoc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-corres-rel.pkl')),dtype='float32')
+    posl = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-lhs.pkl')),dtype='float32')
+    posr = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-rhs.pkl')),dtype='float32')
+    poso = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-rel.pkl')),dtype='float32')
+    poslc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-corres-lhs.pkl')),dtype='float32')
+    posrc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-corres-rhs.pkl')),dtype='float32')
+    posoc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-corres-rel.pkl')),dtype='float32')
 
     nbtest = 5000
 
@@ -70,12 +73,12 @@ if evaln == 1 or evaln == 0:
 #    sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
 #    sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
 #
-#    posl = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-lhs.pkl')),dtype='float32')
-#    posr = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rhs.pkl')),dtype='float32')
-#    poso = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rel.pkl')),dtype='float32')
-#    poslc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-lhs.pkl')),dtype='float32')
-#    posrc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-rhs.pkl')),dtype='float32')
-#    posoc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-mod-rel.pkl')),dtype='float32')
+#    posl = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-lhs.pkl')),dtype='float32')
+#    posr = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-rhs.pkl')),dtype='float32')
+#    poso = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-rel.pkl')),dtype='float32')
+#    poslc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-mod-lhs.pkl')),dtype='float32')
+#    posrc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-mod-rhs.pkl')),dtype='float32')
+#    posoc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-mod-rel.pkl')),dtype='float32')
 #
 #    nbtest = 5000
 #
@@ -91,12 +94,12 @@ if evaln == 1 or evaln == 0:
 #    sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
 #    sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
 #
-#    posl = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-lhs.pkl')),dtype='float32')
-#    posr = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rhs.pkl')),dtype='float32')
-#    poso = scipy.sparse.csr_matrix(cPickle.load(open('XWN-lemme-rel.pkl')),dtype='float32')
-#    poslc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-lhs.pkl')),dtype='float32')
-#    posrc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-rhs.pkl')),dtype='float32')
-#    posoc = scipy.sparse.csr_matrix(cPickle.load(open('XWN-nmod-rel.pkl')),dtype='float32')
+#    posl = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-lhs.pkl')),dtype='float32')
+#    posr = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-rhs.pkl')),dtype='float32')
+#    poso = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-lemme-rel.pkl')),dtype='float32')
+#    poslc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-nmod-lhs.pkl')),dtype='float32')
+#    posrc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-nmod-rhs.pkl')),dtype='float32')
+#    posoc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'XWN-nmod-rel.pkl')),dtype='float32')
 #
 #    nbtest = 5000
 #
@@ -111,12 +114,12 @@ if evaln == 1 or evaln == 0:
 if evaln == 2 or evaln == 0:
     modelpred = {}
     nmodelpred = {}
-    posl = (cPickle.load(open('XWN-WSD-lhs.pkl'))).tocsr()
-    posr = (cPickle.load(open('XWN-WSD-rhs.pkl'))).tocsr()
-    poso = (cPickle.load(open('XWN-WSD-rel.pkl'))).tocsr()
-    dicto = cPickle.load(open('XWN-WSD-dict.pkl'))
-    lab = cPickle.load(open('XWN-WSD-lab.pkl'))
-    freq = cPickle.load(open('XWN-WSD-freq.pkl'))
+    posl = (cPickle.load(open(datpath+'XWN-WSD-lhs.pkl'))).tocsr()
+    posr = (cPickle.load(open(datpath+'XWN-WSD-rhs.pkl'))).tocsr()
+    poso = (cPickle.load(open(datpath+'XWN-WSD-rel.pkl'))).tocsr()
+    dicto = cPickle.load(open(datpath+'XWN-WSD-dict.pkl'))
+    lab = cPickle.load(open(datpath+'XWN-WSD-lab.pkl'))
+    freq = cPickle.load(open(datpath+'XWN-WSD-freq.pkl'))
     simifunc = BatchSimilarityFunction(simfn,embeddings,leftop,rightop)
     listrank = (simifunc(posl,posr,poso)[0]).flatten()
     modelvX = []
@@ -170,12 +173,12 @@ if evaln == 3 or evaln == 0:
     srl = SimilarityFunctionrightl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
     sll = SimilarityFunctionleftl(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
     sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop,numpy.max(synset2idx.values())+1,True)
-    posl = scipy.sparse.csr_matrix(cPickle.load(open('Brown-lemme-lhs.pkl')),dtype='float32')
-    posr = scipy.sparse.csr_matrix(cPickle.load(open('Brown-lemme-rhs.pkl')),dtype='float32')
-    poso = scipy.sparse.csr_matrix(cPickle.load(open('Brown-lemme-rel.pkl')),dtype='float32')
-    poslc = scipy.sparse.csr_matrix(cPickle.load(open('Brown-corres-lhs.pkl')),dtype='float32')
-    posrc = scipy.sparse.csr_matrix(cPickle.load(open('Brown-corres-rhs.pkl')),dtype='float32')
-    posoc = scipy.sparse.csr_matrix(cPickle.load(open('Brown-corres-rel.pkl')),dtype='float32')
+    posl = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'Brown-lemme-lhs.pkl')),dtype='float32')
+    posr = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'Brown-lemme-rhs.pkl')),dtype='float32')
+    poso = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'Brown-lemme-rel.pkl')),dtype='float32')
+    poslc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'Brown-corres-lhs.pkl')),dtype='float32')
+    posrc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'Brown-corres-rhs.pkl')),dtype='float32')
+    posoc = scipy.sparse.csr_matrix(cPickle.load(open(datpath+'Brown-corres-rel.pkl')),dtype='float32')
 
     nbtest = 5000
 
@@ -188,12 +191,12 @@ if evaln == 3 or evaln == 0:
 
 #----------------------------------------------------------------------------------------------------
 if evaln == 4 or evaln == 0:
-    posl = (cPickle.load(open('Brown-WSD-lhs.pkl'))).tocsr()
-    posr = (cPickle.load(open('Brown-WSD-rhs.pkl'))).tocsr()
-    poso = (cPickle.load(open('Brown-WSD-rel.pkl'))).tocsr()
-    dicto = cPickle.load(open('Brown-WSD-dict.pkl'))
-    lab = cPickle.load(open('Brown-WSD-lab.pkl'))
-    freq = cPickle.load(open('Brown-WSD-freq.pkl'))
+    posl = (cPickle.load(open(datpath+'Brown-WSD-lhs.pkl'))).tocsr()
+    posr = (cPickle.load(open(datpath+'Brown-WSD-rhs.pkl'))).tocsr()
+    poso = (cPickle.load(open(datpath+'Brown-WSD-rel.pkl'))).tocsr()
+    dicto = cPickle.load(open(datpath+'Brown-WSD-dict.pkl'))
+    lab = cPickle.load(open(datpath+'Brown-WSD-lab.pkl'))
+    freq = cPickle.load(open(datpath+'Brown-WSD-freq.pkl'))
     simifunc = BatchSimilarityFunction(simfn,embeddings,leftop,rightop)
     listrank = (simifunc(posl,posr,poso)[0]).flatten()
     modelvB = []
@@ -227,12 +230,12 @@ if evaln == 4 or evaln == 0:
 
 #----------------------------------------------------------------------------------------------------
 if evaln == 5 or evaln == 0:
-    posl = (cPickle.load(open('Senseval3-WSD-lhs.pkl'))).tocsr()
-    posr = (cPickle.load(open('Senseval3-WSD-rhs.pkl'))).tocsr()
-    poso = (cPickle.load(open('Senseval3-WSD-rel.pkl'))).tocsr()
-    dicto = cPickle.load(open('Senseval3-WSD-dict.pkl'))
-    lab = cPickle.load(open('Senseval3-WSD-lab.pkl'))
-    freq = cPickle.load(open('Senseval3-WSD-freq.pkl'))
+    posl = (cPickle.load(open(datpath+'Senseval3-WSD-lhs.pkl'))).tocsr()
+    posr = (cPickle.load(open(datpath+'Senseval3-WSD-rhs.pkl'))).tocsr()
+    poso = (cPickle.load(open(datpath+'Senseval3-WSD-rel.pkl'))).tocsr()
+    dicto = cPickle.load(open(datpath+'Senseval3-WSD-dict.pkl'))
+    lab = cPickle.load(open(datpath+'Senseval3-WSD-lab.pkl'))
+    freq = cPickle.load(open(datpath+'Senseval3-WSD-freq.pkl'))
     simifunc = BatchSimilarityFunction(simfn,embeddings,leftop,rightop)
     listrank = (simifunc(posl,posr,poso)[0]).flatten()
     modelvX = []
