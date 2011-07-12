@@ -33,7 +33,7 @@ THEANO_FLAGS=floatX=float32,device=[cpu/gpu] python evaluation.py resultfolder i
 using the jobman interface.
 
 #------------------------------------------------------------------------------------------
-Contact: glorotxa@iro.umontreal.ca
+Contact: glorotxa ..at.. iro.umontreal.ca
 
 
 
