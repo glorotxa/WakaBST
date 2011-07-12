@@ -5,20 +5,22 @@ import sys
 from model import *
 
 train = 'train'
-operator = 'quad'
-ndim = 100
-nbatches = 10
-lrparam = 1
-lremb = 0.01
-nbtest = 100 
-testall = 25
-savepath = 'expe100'
-simfnstr = 'dot'
-listconcept = ['__brain_NN_1', '__eat_VB_1', '__france_NN_1', '__auto_NN_1']
-listrel = ['_has_part','_similar_to','_member_of_domain_topic','_part_of','_verb_group','_derivationally_related_form']
-nbrank = 30
-loadmodel = False#'expe100/model.pkl'
 
+operator = 'quad' # operator type ('quad' = quadratic)
+ndim = 50 # embeddings size
+nbatches = 10 # number of batches to create out of the whole training size
+lrparam = 1 # learning rate of the model parameters
+lremb = 0.01 # learning rate of the embeddings
+nbtest = 100 # perform ranking over this number of test samples
+testall = 1 # perform evaluation at each time we made this number of epochs.
+savepath = 'expe100' # name of the folder to create to save the model and the ranking lists
+simfnstr = 'dot' # the similarity scoring function
+listconcept = [['__brain_NN_1'], ['__france_NN_1'], ['__auto_NN_1']] # The rhs and lhs to use for the creation of the ranking list
+listrel = [['_has_part'],['_part_of']] # the relations to use to create the ranking lists
+nbrank = 30 # How many word we look when we create ranking lists
+warp = 10 # maximum number of resampling time for the warp update (if False no warp)
+loadmodel = False #path to model.pkl to load
+datpath = '/data/lisa/exp/glorotxa/WakaBST4/' #data path to load from
 
 print >> sys.stderr, 'train set : ', train
 print >> sys.stderr, 'operator : ', operator
@@ -33,6 +35,7 @@ print >> sys.stderr, 'simfnstr : ', simfnstr
 print >> sys.stderr, 'listconcept : ', listconcept
 print >> sys.stderr, 'listrel : ', listrel
 print >> sys.stderr, 'nbrank : ', nbrank
+print >> sys.stderr, 'warp : ', warp
 print >> sys.stderr, 'loadmodel : ', loadmodel
 
 
@@ -84,14 +87,14 @@ synset2concept = cPickle.load(open(datpath+'synset2concept.pkl','r'))
 concept2synset = cPickle.load(open(datpath+'concept2synset.pkl','r'))
 
 # train set
-posl = (cPickle.load(open('WordNet3.0-%s-lhs.pkl'%train,'r'))).tocsr()
-posr = (cPickle.load(open('WordNet3.0-%s-rhs.pkl'%train,'r'))).tocsr()
-poso = (cPickle.load(open('WordNet3.0-%s-rel.pkl'%train,'r'))).tocsr()
+posl = (cPickle.load(open(datpath + 'WordNet3.0-%s-lhs.pkl'%train,'r'))).tocsr()
+posr = (cPickle.load(open(datpath + 'WordNet3.0-%s-rhs.pkl'%train,'r'))).tocsr()
+poso = (cPickle.load(open(datpath + 'WordNet3.0-%s-rel.pkl'%train,'r'))).tocsr()
 
 # test set
-tesl = (cPickle.load(open('WordNet3.0-test-lhs.pkl','r'))).tocsr()
-tesr = (cPickle.load(open('WordNet3.0-test-rhs.pkl','r'))).tocsr()
-teso = (cPickle.load(open('WordNet3.0-test-rel.pkl','r'))).tocsr()
+tesl = (cPickle.load(open(datpath + 'WordNet3.0-test-lhs.pkl','r'))).tocsr()
+tesr = (cPickle.load(open(datpath + 'WordNet3.0-test-rhs.pkl','r'))).tocsr()
+teso = (cPickle.load(open(datpath + 'WordNet3.0-test-rel.pkl','r'))).tocsr()
 # ------------------
 rows,cols = tesl.nonzero()
 idxtl = rows[numpy.argsort(cols)]
@@ -101,8 +104,8 @@ rows,cols = teso.nonzero()
 idxto = rows[numpy.argsort(cols)]
 
 # random
-random = scipy.sparse.lil_matrix((len(idx2concept.keys()+idx2amb.keys()),3*posl.shape[1]),dtype=theano.config.floatX)
-idxr = numpy.asarray(numpy.random.randint(len(idx2concept.keys()+idx2amb.keys()),size=(3*posl.shape[1])),dtype='int32')
+random = scipy.sparse.lil_matrix((numpy.max(lemme2idx.values())+1,3*posl.shape[1]),dtype=theano.config.floatX)
+idxr = numpy.asarray(numpy.random.randint(numpy.max(lemme2idx.values())+1,size=(3*posl.shape[1])),dtype='int32')
 for idx,i in enumerate(idxr):
     random[i,idx]=1
 
@@ -176,7 +179,7 @@ sol = SimilarityFunctionrell(simfn,embeddings,leftop,rightop)
 # -- Distance between lhs and rhs embeddings
 leftopid = Id()
 rightopid = Id()
-Esim = SimilarityFunctionright(L2sim,embeddings,leftopid,rightopid)
+Esim = SimilarityFunctionrightl(L2sim,embeddings,leftopid,rightopid)
 
 
 # Init. of variables for the training loop:
@@ -200,7 +203,7 @@ while 1:
         tmpno = copy.deepcopy(random[:,(3*i+1)*M:(3*i+2)*M])
         tmpnr = copy.deepcopy(random[:,(3*i+2)*M:(3*i+3)*M])
         if warp:
-            tmpnl,tmpnr,tmpno = warpsampling(fftwnl,posl[:,i*M:(i+1)*M],posr[:,i*M:(i+1)*M],poso[:,i*M:(i+1)*M],tmpnl,tmpnr,tmpno,warp)
+            tmpnl,tmpnr,tmpno = warpsampling(fftwn,posl[:,i*M:(i+1)*M],posr[:,i*M:(i+1)*M],poso[:,i*M:(i+1)*M],tmpnl,tmpnr,tmpno,warp)
         resl = ft(lrparam/float(M),lremb,posl[:,i*M:(i+1)*M],posr[:,i*M:(i+1)*M],poso[:,i*M:(i+1)*M],tmpnl,tmpnr,tmpno)
         left += [resl[1]/float(M)]
         right += [resl[2]/float(M)] 
